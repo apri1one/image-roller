@@ -1,18 +1,25 @@
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const path = require('path');
 
-const isWin = process.platform === 'win32';
-const npm = isWin ? 'npm.cmd' : 'npm';
-
-const backend = spawn(npm, ['start'], {
+const backend = spawn('node', ['src/core/master.js', '--no-ui'], {
   cwd: path.join(__dirname, 'backend'),
-  stdio: 'inherit'
+  stdio: 'inherit',
+  shell: true
 });
 
 const frontend = spawn('node', ['serve.js'], {
   cwd: __dirname,
-  stdio: 'inherit'
+  stdio: 'inherit',
+  shell: true
 });
+
+setTimeout(() => {
+  const url = 'http://localhost:8180';
+  const cmd = process.platform === 'win32' ? `start "" "${url}"`
+    : process.platform === 'darwin' ? `open "${url}"`
+    : `xdg-open "${url}"`;
+  exec(cmd);
+}, 5000);
 
 process.on('SIGINT', () => {
   backend.kill();

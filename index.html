@@ -564,13 +564,15 @@ async function concurrentMap(items, limit, worker) {
 }
 
 // ===== 抽卡核心 =====
-let runningController = null;
+const runningControllers = new Map();
 async function rollCards() {
-  if (runningController) { toast('已有任务进行中', 'err'); return; }
-  runningController = new AbortController();
   if (!state.currentConvId) newConv();
+  const convId = state.currentConvId;
+  if (runningControllers.has(convId)) { toast('当前对话已有任务进行中', 'err'); return; }
+  const controller = new AbortController();
+  runningControllers.set(convId, controller);
   const prompt = document.getElementById('prompt').value.trim();
-  if (!prompt) { toast('请输入 prompt', 'err'); runningController = null; return; }
+  if (!prompt) { toast('请输入 prompt', 'err'); runningControllers.delete(convId); return; }
   const n = +document.getElementById('cfg-n').value || 4;
   const size = document.getElementById('cfg-size').value;
   const conc = +document.getElementById('cfg-conc').value || 3;
@@ -608,7 +610,7 @@ async function rollCards() {
   }
   let maskBlob = editorState.pendingMaskBlob || null;
   editorState.pendingMaskBlob = null;
-  const signal = runningController.signal;
+  const signal = controller.signal;
 
   await Promise.all(node.results.map((slot, i) => limitedRoll(node, slot, i, prompt, size, imageBlob, signal, effort, maskBlob)
     .then(r => {
@@ -620,7 +622,7 @@ async function rollCards() {
   node.completedAt = Date.now();
   state.endpointHealthy = true;
   saveState(); renderAll();
-  runningController = null;
+  runningControllers.delete(convId);
   toast('完成', 'ok');
   updateEndpointStatus('ok');
 }
