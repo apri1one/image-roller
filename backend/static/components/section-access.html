@@ -1,0 +1,198 @@
+<link rel="stylesheet" href="components/section-access.css">
+<section id="access" class="section" aria-labelledby="access-title">
+    <div class="access-header">
+        <div>
+            <h2 id="access-title" data-i18n="access.title">快速接入</h2>
+            <p class="access-subtitle" data-i18n="access.subtitle">把对外分发 Key、基础地址和供应商路由集中到一个页面里，方便直接复制给客户端。</p>
+        </div>
+        <button id="refreshAccessInfo" class="btn btn-outline btn-sm" type="button">
+            <i class="fas fa-sync-alt"></i>
+            <span data-i18n="common.refresh">刷新</span>
+        </button>
+    </div>
+
+    <div class="stats-grid access-stats">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-key"></i></div>
+            <div class="stat-info">
+                <h3 id="accessApiKeyStatus">--</h3>
+                <p data-i18n="access.stats.key">对外 Key</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-layer-group"></i></div>
+            <div class="stat-info">
+                <h3 id="accessDefaultProvidersCount">0</h3>
+                <p data-i18n="access.stats.defaultProviders">预加载供应商</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-network-wired"></i></div>
+            <div class="stat-info">
+                <h3 id="accessProviderGroupsCount">0</h3>
+                <p data-i18n="access.stats.providerGroups">供应商分组</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-server"></i></div>
+            <div class="stat-info">
+                <h3 id="accessTotalNodesCount">0</h3>
+                <p data-i18n="access.stats.totalNodes">节点总数</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="access-grid">
+        <section class="access-panel">
+            <div class="access-panel-header">
+                <h3><i class="fas fa-plug"></i> <span data-i18n="access.connection.title">接入信息</span></h3>
+            </div>
+
+            <div class="access-field-group">
+                <label for="accessApiKeyField" data-i18n="access.connection.apiKey">当前对外分发 Key</label>
+                <div class="access-copy-row">
+                    <div class="password-input-wrapper">
+                        <div class="input-with-toggle">
+                            <input type="password" id="accessApiKeyField" class="form-control" readonly>
+                            <button type="button" class="password-toggle" id="toggleAccessApiKey" data-i18n-aria-label="common.togglePassword">
+                                <i class="fas fa-eye" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" id="copyAccessApiKey" 
+                            data-i18n-title="access.actions.copyKey" title="复制 Key">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="form-text" data-i18n="access.connection.apiKeyHelp">这是客户端调用 `/v1/chat/completions` 或 `/v1/messages` 时要带的认证 Key。</small>
+            </div>
+
+            <div class="access-field-group">
+                <label for="accessBaseUrlField" data-i18n="access.connection.baseUrl">当前管理台访问地址</label>
+                <div class="access-copy-row">
+                    <input type="text" id="accessBaseUrlField" class="form-control" readonly>
+                    <button type="button" class="btn btn-secondary btn-sm" id="copyAccessBaseUrl" 
+                            data-i18n-title="access.actions.copyBaseUrl" title="复制地址">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="form-text" data-i18n="access.connection.baseUrlHelp">通常把这个地址加上供应商路径后，直接发给客户端即可。</small>
+            </div>
+
+            <div class="access-field-group">
+                <label data-i18n="access.connection.defaultProviders">当前预加载供应商</label>
+                <div id="accessDefaultProviders" class="access-chip-list"></div>
+            </div>
+        </section>
+
+        <section class="access-panel">
+            <div class="access-panel-header">
+                <h3><i class="fas fa-route"></i> <span data-i18n="access.quickStart.title">快速说明</span></h3>
+            </div>
+            <p class="access-panel-subtitle" data-i18n="access.quickStart.subtitle">适合第一次给客户端发接入信息时按顺序操作，先拿 Key，再选路由，最后复制成片段。</p>
+            <div class="access-hint-list">
+                <div class="access-hint-card">
+                    <strong data-i18n="access.quickStart.step1Title">1. 先复制 Key</strong>
+                    <p data-i18n="access.quickStart.step1Desc">把上面的对外 Key 发给客户端，客户端请求头里带 `Authorization: Bearer KEY`。</p>
+                </div>
+                <div class="access-hint-card">
+                    <strong data-i18n="access.quickStart.step2Title">2. 再选供应商路由</strong>
+                    <p data-i18n="access.quickStart.step2Desc">不同供应商对应不同路径，例如 `openai-codex-oauth`、`gemini-cli-oauth`。</p>
+                </div>
+                <div class="access-hint-card">
+                    <strong data-i18n="access.quickStart.step3Title">3. 直接复制端点</strong>
+                    <p data-i18n="access.quickStart.step3Desc">下面每一行都给了 OpenAI / Claude 两种协议端点，点按钮即可复制。</p>
+                </div>
+            </div>
+            <div class="access-quick-actions">
+                <button type="button" class="btn btn-outline btn-sm access-jump-btn" data-section="config">
+                    <i class="fas fa-sliders-h"></i>
+                    <span data-i18n="access.quickStart.gotoConfig">去配置管理</span>
+                </button>
+                <button type="button" class="btn btn-outline btn-sm access-jump-btn" data-section="providers">
+                    <i class="fas fa-server"></i>
+                    <span data-i18n="access.quickStart.gotoProviders">去提供商池管理</span>
+                </button>
+            </div>
+            <p class="access-panel-note" data-i18n="access.quickStart.note">如果这里还没有已配置节点，可以先去配置管理和提供商池管理补配置，再回来复制片段。</p>
+        </section>
+    </div>
+
+    <section class="access-panel access-panel-full">
+        <div class="access-panel-header">
+            <h3><i class="fas fa-window-restore"></i> <span data-i18n="access.snippets.title">客户端配置片段</span></h3>
+        </div>
+        <p class="access-panel-subtitle" data-i18n="access.snippets.subtitle">这些片段更偏向“现成可复制的说明文本”，方便贴给客户端或运维同学，不等同于各客户端官方导入文件。</p>
+        <div class="access-snippet-toolbar">
+            <div class="access-snippet-provider">
+                <label for="accessSnippetProvider" data-i18n="access.snippets.provider">用于生成片段的供应商</label>
+                <select id="accessSnippetProvider" class="form-control"></select>
+            </div>
+            <div class="access-snippet-format" data-i18n-aria-label="access.snippets.formatLabel">
+                <span class="access-snippet-format-label" data-i18n="access.snippets.format">片段格式</span>
+                <div class="access-segmented-control" role="tablist" data-i18n-aria-label="access.snippets.formatLabel">
+                    <button type="button" class="access-format-btn active" data-format="markdown" data-i18n="access.snippets.format.markdown">Markdown</button>
+                    <button type="button" class="access-format-btn" data-format="env" data-i18n="access.snippets.format.env">ENV</button>
+                    <button type="button" class="access-format-btn" data-format="json" data-i18n="access.snippets.format.json">JSON</button>
+                </div>
+            </div>
+        </div>
+        <div class="access-snippet-grid">
+            <article class="access-snippet-card">
+                <div class="access-snippet-head">
+                    <div>
+                        <h4><i class="fas fa-gem"></i> Cherry Studio</h4>
+                        <p class="access-snippet-desc" data-i18n="access.snippets.cherryDesc">适合手动新建 OpenAI 兼容供应商时直接照着填。</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm access-snippet-copy-btn" 
+                            data-target="accessCherrySnippet" data-i18n-title="access.actions.copySnippet" title="复制片段">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <pre><code id="accessCherrySnippet"></code></pre>
+            </article>
+            <article class="access-snippet-card">
+                <div class="access-snippet-head">
+                    <div>
+                        <h4><i class="fas fa-comment-alt"></i> NextChat</h4>
+                        <p class="access-snippet-desc" data-i18n="access.snippets.nextchatDesc">适合环境变量、自定义 OpenAI 接入或发给部署同学。</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm access-snippet-copy-btn" 
+                            data-target="accessNextChatSnippet" data-i18n-title="access.actions.copySnippet" title="复制片段">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <pre><code id="accessNextChatSnippet"></code></pre>
+            </article>
+            <article class="access-snippet-card">
+                <div class="access-snippet-head">
+                    <div>
+                        <h4><i class="fas fa-terminal"></i> Cline</h4>
+                        <p class="access-snippet-desc" data-i18n="access.snippets.clineDesc">适合新建 OpenAI Provider profile 时直接参考。</p>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm access-snippet-copy-btn" 
+                            data-target="accessClineSnippet" data-i18n-title="access.actions.copySnippet" title="复制片段">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <pre><code id="accessClineSnippet"></code></pre>
+            </article>
+        </div>
+    </section>
+
+    <section class="access-panel access-panel-full">
+        <div class="access-panel-header">
+            <h3><i class="fas fa-table"></i> <span data-i18n="access.providers.title">供应商与调用端点</span></h3>
+            <label class="access-filter-toggle" for="accessConfiguredOnly">
+                <input type="checkbox" id="accessConfiguredOnly" checked>
+                <span data-i18n="access.providers.configuredOnly">只显示已配置供应商</span>
+            </label>
+        </div>
+        <div id="accessProvidersTable" class="access-provider-list">
+            <div class="status-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span data-i18n="common.loading">加载中...</span>
+            </div>
+        </div>
+    </section>
+</section>

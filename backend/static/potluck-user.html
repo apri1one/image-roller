@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#059669">
+    <title>API 大锅饭 - 我的用量</title>
+    <link rel="stylesheet" href="app/base.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: var(--bg-secondary);
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+        .navbar-inner {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .navbar-brand .icon {
+            font-size: 28px;
+            color: var(--primary-color);
+        }
+        .navbar-brand .badge {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: #ffffff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            font-weight: 600;
+        }
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .navbar-user .welcome {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+        .navbar-user .welcome strong { color: var(--text-primary); }
+        
+        /* 主题切换按钮 */
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.125rem;
+            transition: var(--transition);
+        }
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .theme-toggle .fa-sun { display: none; }
+        .theme-toggle .fa-moon { display: inline-block; }
+        [data-theme="dark"] .theme-toggle .fa-sun { display: inline-block; }
+        [data-theme="dark"] .theme-toggle .fa-moon { display: none; }
+
+        /* 主容器 */
+        .main-container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 30px 24px;
+        }
+
+        /* 区块标题 */
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* 统计卡片 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-30);
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+        .stat-card.purple::before { background: linear-gradient(90deg, var(--indigo-500), var(--indigo-600)); }
+        .stat-card.green::before { background: linear-gradient(90deg, var(--success-color), var(--primary-light)); }
+        .stat-card.cyan::before { background: linear-gradient(90deg, var(--info-color), #22d3ee); }
+        .stat-card.orange::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .stat-card .value .dim {
+            font-size: 1.25rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+        .stat-card.purple .value > span:first-child { color: var(--indigo-500); }
+        .stat-card.green .value > span:first-child { color: var(--success-color); }
+        .stat-card.cyan .value { color: var(--info-color); }
+        .stat-card.orange .value { color: #f59e0b; font-size: 1.25rem; margin-top: 0.5rem; }
+
+        /* 分布统计样式 */
+        .distribution-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .distribution-item {
+            width: 100%;
+        }
+        .dist-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        .dist-name {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .dist-count {
+            color: var(--text-secondary);
+        }
+        .dist-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+        .dist-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+            border-radius: var(--radius-full);
+        }
+
+        /* 登录页面 */
+
+        .login-container {
+            min-height: calc(100vh - 64px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        .login-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: var(--shadow-lg);
+        }
+        .login-box h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-align: center;
+            margin-bottom: 8px;
+        }
+        .login-box .subtitle {
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 14px;
+            margin-bottom: 30px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .form-input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            transition: var(--transition);
+        }
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--primary-10);
+        }
+        .form-input::placeholder { color: var(--text-tertiary); }
+        .form-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+        .form-checkbox input {
+            width: 16px;
+            height: 16px;
+            accent-color: var(--primary-color);
+        }
+
+        /* API Key 显示区域 */
+        .apikey-display {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+        .apikey-display input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 14px 16px;
+            color: var(--success-color);
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            text-align: center;
+            margin-bottom: 16px;
+            transition: var(--transition);
+        }
+        .apikey-display input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+        }
+
+        /* 提示信息 */
+        .info-box {
+            background: var(--info-bg-lighter);
+            border: 1px solid var(--info-border);
+            border-radius: var(--radius-lg);
+            padding: 14px 16px;
+            margin-top: 20px;
+        }
+        .info-box p {
+            font-size: 13px;
+            color: var(--info-text);
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn {
+            height: 2.5rem;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .navbar-inner { padding: 0 16px; }
+            .navbar-user .welcome { display: none; }
+            .main-container { padding: 20px 16px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .login-box { padding: 24px; }
+        }
+        @media (max-width: 480px) {
+            .stat-card .value { font-size: 1.5rem; }
+            .stat-card .value .dim { font-size: 1rem; }
+            .navbar-brand .badge { display: none; }
+        }
+
+        /* 按钮块级样式 */
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .calendar-panel { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 20px; margin-bottom: 2rem; box-shadow: var(--shadow-sm); }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .calendar-legend { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-tertiary); }
+        .calendar-legend .level { width: 10px; height: 10px; border-radius: 2px; }
+        .calendar-wrapper { overflow-x: auto; padding: 25px 0 10px; scrollbar-width: thin; margin-top: -15px; display: flex; justify-content: center; }
+        .calendar-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; min-width: max-content; padding: 2px; }
+        .calendar-day { width: 11px; height: 11px; border-radius: 2px; background: var(--bg-secondary); position: relative; cursor: pointer; transition: transform 0.1s; }
+        .calendar-day:hover { transform: scale(1.2); z-index: 10; outline: 1px solid var(--primary-color); }
+        .calendar-footer { margin-top: 10px; font-size: 12px; color: var(--text-tertiary); text-align: right; }
+        .level-0, .calendar-day[data-level="0"] { background: var(--bg-secondary); }
+        .level-1, .calendar-day[data-level="1"] { background: #9be9a8; }
+        .level-2, .calendar-day[data-level="2"] { background: #40c463; }
+        .level-3, .calendar-day[data-level="3"] { background: #30a14e; }
+        .level-4, .calendar-day[data-level="4"] { background: #216e39; }
+        [data-theme="dark"] .level-1, [data-theme="dark"] .calendar-day[data-level="1"] { background: #0e4429; }
+        [data-theme="dark"] .level-2, [data-theme="dark"] .calendar-day[data-level="2"] { background: #006d32; }
+        [data-theme="dark"] .level-3, [data-theme="dark"] .calendar-day[data-level="3"] { background: #26a641; }
+        [data-theme="dark"] .level-4, [data-theme="dark"] .calendar-day[data-level="4"] { background: #39d353; }
+        .calendar-tooltip { position: fixed; padding: 6px 10px; background: rgba(0,0,0,0.9); color: #fff; font-size: 11px; border-radius: 4px; pointer-events: none; z-index: 1000; display: none; box-shadow: 0 3px 10px rgba(0,0,0,0.3); white-space: pre-line; line-height: 1.4; }
+
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-brand">
+                <span class="icon">🍲</span>
+                <span>API 大锅饭</span>
+                <span class="badge">用户版</span>
+            </div>
+            <div class="navbar-user" id="navbarUser" style="display: none;">
+                <span class="welcome">欢迎，<strong id="navUserName">-</strong></span>
+                <button class="theme-toggle" id="themeToggle" title="切换主题">
+                    <i class="fas fa-sun"></i>
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> <span class="btn-text">退出</span>
+                </button>
+            </div>
+            <!-- 未登录时显示主题切换 -->
+            <button class="theme-toggle" id="themeToggleLogin" style="display: none;" title="切换主题">
+                <i class="fas fa-sun"></i>
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 登录页面 -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <h2><i class="fas fa-key"></i> 登录</h2>
+            <p class="subtitle">使用您的 API Key 登录查看用量</p>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="text" class="form-input" id="apiKeyInput" placeholder="maki_xxxxxxxx..." autocomplete="off">
+            </div>
+            <div class="form-group">
+                <label class="form-checkbox">
+                    <input type="checkbox" id="rememberKey" checked>
+                    <span>记住我的 Key</span>
+                </label>
+            </div>
+            <button class="btn btn-primary btn-block" id="loginBtn" onclick="login()">
+                <i class="fas fa-sign-in-alt"></i> 登录
+            </button>
+        </div>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="main-container" id="mainContainer" style="display: none;">
+        <h3 class="section-title"><i class="fas fa-chart-bar"></i> 个人使用统计</h3>
+        
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card orange">
+                <div class="label">最后使用</div>
+                <div class="value" id="statLastUsed">从未</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="label">每日用量</div>
+                <div class="value">
+                    <span id="statToday">0</span>
+                    <span class="dim"> / <span id="statLimit">0</span></span>
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">QPS: <span id="statQps" style="font-weight:700;color:var(--primary-color)">0.00</span> (峰值: <span id="statMaxQps">0.00</span>) | RPM: <span id="statRpm" style="font-weight:700;color:var(--primary-color)">0.00</span> (峰值: <span id="statMaxRpm">0.00</span>)</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">剩余额度</div>
+                <div class="value">
+                    <span id="statRemaining">0</span>
+                </div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="label">累计调用</div>
+                <div class="value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">今日 Tokens</div>
+                <div class="value" id="statTodayTokens">0</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">TPS: <span id="statTps" style="font-weight:700;color:var(--primary-color)">0.00</span> (峰值: <span id="statMaxTps">0.00</span>)</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="label">今日缓存 Tokens</div>
+                <div class="value" id="statTodayCachedTokens">0</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="label">累计 Tokens</div>
+                <div class="value" id="statTotalTokens">0</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="label">累计缓存 Tokens</div>
+                <div class="value" id="statTotalCachedTokens">0</div>
+            </div>
+        </div>
+
+        <!-- 我的使用分布统计区域 -->
+        <div id="usageStatsSection" style="margin-bottom: 2.5rem; display: none;">
+            <h3 class="section-title"><i class="fas fa-chart-pie"></i> 我的使用趋势与分布 (最近 3 个月)</h3>
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <!-- Token 用量日历 -->
+                <div class="stat-card" style="text-align: left; padding: 20px;">
+                    <div class="label" style="margin-bottom: 10px; font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>我的 Token 消耗趋势</span>
+                        <div class="calendar-legend" style="gap: 3px;">
+                            <div class="level level-1" style="width:8px;height:8px"></div>
+                            <div class="level level-4" style="width:8px;height:8px"></div>
+                        </div>
+                    </div>
+                    <div class="calendar-wrapper" style="justify-content: flex-start; padding: 10px 0 5px; margin-top: 0;">
+                        <div class="calendar-grid" id="calendarGrid" style="grid-template-rows: repeat(7, 11px); gap: 3px;"></div>
+                    </div>
+                    <div id="calendarFooter" style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px;"></div>
+                </div>
+
+                <!-- 提供商分布 -->
+                <div class="stat-card" style="text-align: left; padding: 20px;">
+                    <div class="label" style="margin-bottom: 15px; font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>常用提供商</span>
+                        <span id="providerTotalCount" style="color: var(--primary-color);">0 次</span>
+                    </div>
+                    <div id="providerDistribution" class="distribution-list">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+                <!-- 模型分布 -->
+                <div class="stat-card" style="text-align: left; padding: 20px;">
+                    <div class="label" style="margin-bottom: 15px; font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>常用模型</span>
+                        <span id="modelTotalCount" style="color: var(--primary-color);">0 次</span>
+                    </div>
+                    <div id="modelDistribution" class="distribution-list">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="usageTooltip" class="calendar-tooltip"></div>
+
+        
+        <!-- API 密钥区域 -->
+
+        <h3 class="section-title"><i class="fas fa-key"></i> API 密钥</h3>
+        
+        <div class="apikey-display">
+            <input type="text" id="displayApiKeyFull" readonly 
+                style="font-family: 'JetBrains Mono', monospace; font-size: 14px; text-align: center; background: var(--bg-secondary);">
+            
+            <button class="btn btn-primary btn-block" id="copyKeyBtn" onclick="copyApiKey()">
+                <i class="fas fa-copy" id="copyKeyIcon"></i> <span id="copyKeyText">复制 Key</span>
+            </button>
+        </div>
+        
+        <div class="info-box">
+            <p>
+                <i class="fas fa-info-circle"></i>
+                API Key 用于访问 API 服务。请妥善保管，不要泄露给他人。
+            </p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { getCurrentTheme, setTheme, toggleTheme, initThemeSwitcher } from './app/theme-switcher.js';
+        
+        const API_BASE = '/api/potluckuser';
+        let currentApiKey = '';
+        let isLoggedIn = false;
+        const formatNumber = (num) => new Intl.NumberFormat('zh-CN').format(Number(num || 0));
+        const formatTokenCompact = (num) => {
+            const value = Number(num || 0);
+            if (!Number.isFinite(value)) return '0';
+            const abs = Math.abs(value);
+            const units = [
+                { threshold: 1e9, suffix: 'B' },
+                { threshold: 1e6, suffix: 'M' },
+                { threshold: 1e3, suffix: 'K' }
+            ];
+            for (const unit of units) {
+                if (abs >= unit.threshold) {
+                    const scaled = value / unit.threshold;
+                    const digits = Math.abs(scaled) >= 100 ? 0 : Math.abs(scaled) >= 10 ? 1 : 2;
+                    return `${scaled.toFixed(digits).replace(/\.0+$|(\.\d*[1-9])0+$/,'$1')}${unit.suffix}`;
+                }
+            }
+            return formatNumber(value);
+        };
+        const usageCount = (entry) => typeof entry === 'number' ? entry : Number(entry?.requestCount || 0);
+        const usageTokens = (entry) => typeof entry === 'number' ? 0 : Number(entry?.totalTokens || 0);
+        
+        // 初始化主题
+        function setupTheme() {
+            const savedTheme = getCurrentTheme();
+            setTheme(savedTheme);
+            
+            // 绑定两个主题切换按钮
+            document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
+            document.getElementById('themeToggleLogin')?.addEventListener('click', toggleTheme);
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            setupTheme();
+            
+            const savedKey = localStorage.getItem('potluck_user_key');
+            if (savedKey) {
+                document.getElementById('apiKeyInput').value = savedKey;
+                login();
+            }
+            
+            document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') login();
+            });
+        });
+        
+        // 登录
+        async function login() {
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                showToast('请输入 API Key', 'error');
+                return;
+            }
+            if (!apiKey.startsWith('maki_')) {
+                showToast('API Key 格式不正确', 'error');
+                return;
+            }
+            
+            currentApiKey = apiKey;
+            document.getElementById('loginBtn').disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE}/usage`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${apiKey}` }
+                });
+                const data = await response.json();
+                
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error?.message || '登录失败');
+                }
+                
+                if (document.getElementById('rememberKey').checked) {
+                    localStorage.setItem('potluck_user_key', apiKey);
+                }
+                
+                isLoggedIn = true;
+                displayUserInfo(data.data);
+                document.getElementById('loginContainer').style.display = 'none';
+                document.getElementById('mainContainer').style.display = 'block';
+                document.getElementById('navbarUser').style.display = 'flex';
+                document.getElementById('themeToggleLogin').style.display = 'none';
+                
+                showToast('登录成功', 'success');
+                
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                document.getElementById('loginBtn').disabled = false;
+            }
+        }
+        
+        // 退出登录
+        function logout() {
+            currentApiKey = '';
+            isLoggedIn = false;
+            localStorage.removeItem('potluck_user_key');
+            document.getElementById('loginContainer').style.display = 'flex';
+            document.getElementById('mainContainer').style.display = 'none';
+            document.getElementById('navbarUser').style.display = 'none';
+            document.getElementById('themeToggleLogin').style.display = 'inline-flex';
+            document.getElementById('apiKeyInput').value = '';
+            showToast('已退出登录', 'success');
+        }
+        
+        // 显示用户信息
+        function displayUserInfo(data) {
+            document.getElementById('navUserName').textContent = data.name || '用户';
+            
+            // 每日用量：已用/限额
+            document.getElementById('statToday').textContent = data.usage.today;
+            document.getElementById('statLimit').textContent = data.usage.limit;
+            
+            // 剩余额度
+            document.getElementById('statRemaining').textContent = data.usage.remaining;
+            
+            // 累计调用
+            document.getElementById('statTotal').textContent = data.total || 0;
+
+            // Token 用量
+            document.getElementById('statTodayTokens').textContent = formatTokenCompact(data.usage?.totalTokens || 0);
+            document.getElementById('statTodayCachedTokens').textContent = formatTokenCompact(data.usage?.cachedTokens || 0);
+            document.getElementById('statTotalTokens').textContent = formatTokenCompact(data.tokens?.total || 0);
+            document.getElementById('statTotalCachedTokens').textContent = formatTokenCompact(data.tokens?.cached || 0);
+            
+            // 速率统计
+            document.getElementById('statQps').textContent = (data.usage?.qps || 0).toFixed(2);
+            document.getElementById('statMaxQps').textContent = (data.usage?.maxQps || 0).toFixed(2);
+            document.getElementById('statRpm').textContent = (data.usage?.rpm || 0).toFixed(2);
+            document.getElementById('statMaxRpm').textContent = (data.usage?.maxRpm || 0).toFixed(2);
+            document.getElementById('statTps').textContent = (data.usage?.tps || 0).toFixed(2);
+            document.getElementById('statMaxTps').textContent = (data.usage?.maxTps || 0).toFixed(2);
+            
+            // 最后使用时间
+            if (data.lastUsedAt) {
+                const date = new Date(data.lastUsedAt);
+                document.getElementById('statLastUsed').textContent = formatDate(date);
+            } else {
+                document.getElementById('statLastUsed').textContent = '从未';
+            }
+            
+            // 显示完整 API Key
+            document.getElementById('displayApiKeyFull').value = currentApiKey;
+
+            // 渲染个人使用分布
+            renderUsageHistory(data.usageHistory);
+            renderCalendar(data.usageHistory || {});
+        }
+
+        function renderCalendar(usageHistory = {}) {
+            const grid = document.getElementById('calendarGrid'), tooltip = document.getElementById('usageTooltip');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const now = new Date();
+            const startDate = new Date();
+            startDate.setMonth(now.getMonth() - 3);
+            startDate.setDate(startDate.getDate() - startDate.getDay());
+            
+            // 提取每日总 Token 和请求数
+            const dailyData = {};
+            Object.entries(usageHistory).forEach(([date, data]) => {
+                dailyData[date] = {
+                    totalTokens: data.summary?.totalTokens || 0,
+                    requestCount: data.summary?.requestCount || 0,
+                    maxQps: data.summary?.maxQps || 0,
+                    maxRpm: data.summary?.maxRpm || 0,
+                    maxTps: data.summary?.maxTps || 0
+                };
+            });
+            
+            const values = Object.values(dailyData).map(d => d.totalTokens);
+            const max = Math.max(...values, 1000);
+            const dayCount = Math.floor((now - startDate) / (24 * 3600 * 1000)) + 1;
+            let currentTotal = 0;
+            
+            for(let i = 0; i < dayCount; i++){
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                if (date > now) break;
+                
+                // 统一使用北京时间 (UTC+8) 生成 key，与后端保持一致
+                const utc8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+                const dateKey = utc8Date.toISOString().split('T')[0];
+                const entry = dailyData[dateKey] || { totalTokens: 0, requestCount: 0 };
+                const tokens = entry.totalTokens;
+                const requests = entry.requestCount;
+                currentTotal += tokens;
+                
+                let level = 0;
+                if (tokens > 0) {
+                    const ratio = tokens / max;
+                    if (ratio < 0.25) level = 1;
+                    else if (ratio < 0.5) level = 2;
+                    else if (ratio < 0.75) level = 3;
+                    else level = 4;
+                }
+                
+                const day = document.createElement('div');
+                day.className = 'calendar-day';
+                day.dataset.level = level;
+                
+                const tipText = `${dateKey}: ${formatNumber(requests)} 次请求, ${formatTokenCompact(tokens)} Tokens${entry.maxQps ? `\n峰值: ${entry.maxQps.toFixed(2)} QPS / ${entry.maxRpm.toFixed(0)} RPM / ${entry.maxTps.toFixed(2)} TPS` : ''}`;
+                day.onmouseenter = (e) => {
+                    tooltip.innerText = tipText;
+                    tooltip.style.display = 'block';
+                    const rect = day.getBoundingClientRect();
+                    tooltip.style.left = `${rect.left + rect.width / 2 - tooltip.offsetWidth / 2}px`;
+                    tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                };
+                day.onmouseleave = () => { tooltip.style.display = 'none'; };
+                
+                grid.appendChild(day);
+            }
+            document.getElementById('calendarFooter').textContent = `最近三个月累计消耗: ${formatTokenCompact(currentTotal)} Tokens`;
+        }
+
+        /**
+         * 渲染个人使用分布
+         */
+
+        function renderUsageHistory(usageHistory) {
+            if (!usageHistory || Object.keys(usageHistory).length === 0) {
+                document.getElementById('usageStatsSection').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('usageStatsSection').style.display = 'block';
+            
+            const aggregatedProviders = {};
+            const aggregatedModels = {};
+            let totalCalls = 0;
+            let totalTokens = 0;
+
+            // 汇总最近 7 天的数据
+            Object.values(usageHistory).forEach(day => {
+                if (day.providers) {
+                    Object.entries(day.providers).forEach(([p, usage]) => {
+                        aggregatedProviders[p] = (aggregatedProviders[p] || 0) + usageCount(usage);
+                        totalCalls += usageCount(usage);
+                        totalTokens += usageTokens(usage);
+                    });
+                }
+                if (day.models) {
+                    Object.entries(day.models).forEach(([m, usage]) => {
+                        aggregatedModels[m] = (aggregatedModels[m] || 0) + usageCount(usage);
+                    });
+                }
+            });
+
+            if (totalCalls === 0) {
+                document.getElementById('usageStatsSection').style.display = 'none';
+                return;
+            }
+
+            // 渲染提供商分布
+            renderDistribution('providerDistribution', aggregatedProviders, totalCalls);
+            document.getElementById('providerTotalCount').textContent = `${formatNumber(totalCalls)} 次 / ${formatTokenCompact(totalTokens)} Tokens`;
+
+            // 渲染模型分布
+            renderDistribution('modelDistribution', aggregatedModels, totalCalls);
+            document.getElementById('modelTotalCount').textContent = `${formatNumber(totalCalls)} 次`;
+        }
+
+        function renderDistribution(elementId, data, total) {
+            const container = document.getElementById(elementId);
+            const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+            
+            // 最多显示前 3 个
+            const topData = sorted.slice(0, 3);
+            
+            container.innerHTML = topData.map(([name, count]) => {
+                const percent = Math.round((count / total) * 100);
+                return `
+                    <div class="distribution-item">
+                        <div class="dist-info">
+                            <span class="dist-name">${escapeHtml(name)}</span>
+                            <span class="dist-count">${formatNumber(count)} 次 (${percent}%)</span>
+                        </div>
+                        <div class="dist-bar">
+                            <div class="dist-fill" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            if (sorted.length > 3) {
+                const otherCount = sorted.slice(3).reduce((sum, item) => sum + item[1], 0);
+                const otherPercent = Math.round((otherCount / total) * 100);
+                container.innerHTML += `
+                    <div class="distribution-item">
+                        <div class="dist-info">
+                            <span class="dist-name" style="font-style: italic;">其他</span>
+                            <span class="dist-count">${formatNumber(otherCount)} 次 (${otherPercent}%)</span>
+                        </div>
+                        <div class="dist-bar">
+                            <div class="dist-fill" style="width: ${otherPercent}%; background: #94a3b8;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        // 格式化日期
+        function formatDate(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            return `${y}-${m}-${d} ${h}:${min}:${s}`;
+        }
+        
+        // 复制 API Key
+        function copyApiKey() {
+            const text = currentApiKey;
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    document.getElementById('copyKeyIcon').className = 'fas fa-check';
+                    document.getElementById('copyKeyText').textContent = '已复制';
+                    showToast('已复制到剪贴板', 'success');
+                    setTimeout(() => {
+                        document.getElementById('copyKeyIcon').className = 'fas fa-copy';
+                        document.getElementById('copyKeyText').textContent = '复制 Key';
+                    }, 2000);
+                }).catch(() => copyToClipboardFallback(text));
+            } else {
+                copyToClipboardFallback(text);
+            }
+        }
+        
+        // 复制到剪贴板（兼容方案）
+        function copyToClipboardFallback(text, successMsg = '已复制到剪贴板') {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast(successMsg, 'success');
+            } catch (err) {
+                showToast('复制失败，请手动复制', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+        
+        // Toast
+        function showToast(message, type = 'success') {
+            const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+            return container;
+        }
+        
+        // 导出全局函数
+        window.login = login;
+        window.logout = logout;
+        window.copyApiKey = copyApiKey;
+        window.showToast = showToast;
+    </script>
+</body>
+</html>

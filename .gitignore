@@ -1,0 +1,46 @@
+# 依赖
+backend/node_modules/
+
+# OAuth 凭据（敏感）
+backend/configs/codex/
+backend/configs/kiro-auth-token.json
+backend/configs/token-store.json
+
+# 管理密码
+backend/configs/pwd
+
+# 后端配置（含 API Key）
+backend/configs/config.json
+backend/configs/plugins.json
+backend/configs/usage-cache.json
+backend/configs/fetch_system_prompt.txt
+backend/configs/input_system_prompt.txt
+
+# 号池配置（含账号信息）
+backend/configs/provider_pools.json
+
+# 日志
+backend/logs/
+*.log
+
+# 生成的图片（体积大）
+output/
+
+# 聊天记录 + 状态持久化
+data/
+
+# 本地进度备忘（含隐私信息）
+PROGRESS.md
+HANDOVER.md
+
+# Claude Code 项目指令
+CLAUDE.md
+
+# OS / 编辑器
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Node
+npm-debug.log*

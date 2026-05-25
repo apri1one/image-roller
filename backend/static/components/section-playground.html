@@ -1,0 +1,125 @@
+<link rel="stylesheet" href="components/section-playground.css">
+
+<!-- Playground Workspace -->
+<section id="playground" class="section pg-workspace">
+    <!-- Header: Workspace Title & Actions -->
+    <header class="pg-workspace-header">
+        <div class="pg-title-group">
+            <h2><i class="fas fa-flask"></i> <span data-i18n="nav.playground">推理实验室</span></h2>
+            <div id="pg-active-indicator" class="pg-indicator inactive">
+                <span class="dot"></span> <span id="pg-status-text" data-i18n="playground.status.unready">未就绪</span>
+            </div>
+        </div>
+        <div class="pg-header-tools">
+            <button class="pg-btn-icon" id="pg-clear-btn" data-i18n-title="playground.clearChat" title="重置实验室"><i class="fas fa-redo-alt"></i></button>
+        </div>
+    </header>
+
+    <div class="pg-main-layout">
+        <!-- 1. Left Sidebar: Provider & Model -->
+        <aside class="pg-side-nav">
+            <div class="pg-nav-section">
+                <label class="pg-label" data-i18n="playground.provider">服务提供商</label>
+                <select id="pg-provider-select" class="pg-input-field">
+                    <option value="" data-i18n="playground.loading">正在加载引擎...</option>
+                </select>
+            </div>
+            <div class="pg-nav-section">
+                <label class="pg-label" data-i18n="playground.model">选定模型</label>
+                <select id="pg-model-select" class="pg-input-field" disabled>
+                    <option value="" data-i18n="playground.providerFirst">请先初始化提供商</option>
+                </select>
+            </div>
+
+            <div class="pg-nav-section">
+                <label class="pg-label" data-i18n="playground.interface">接口类型</label>
+                <select id="pg-interface-select" class="pg-input-field">
+                    <option value="chat" data-i18n="playground.interface.chat">对话接口 (Chat)</option>
+                    <option value="image" data-i18n="playground.interface.image">生图接口 (Generations)</option>
+                    <option value="image-edit" data-i18n="playground.interface.imageEdit">修图接口 (Edits)</option>
+                </select>
+            </div>
+
+            <div class="pg-nav-section">
+                <div class="pg-stream-toggle-wrap">
+                    <label class="pg-label" data-i18n="playground.stream" style="margin-bottom: 0;">流式输出 (Stream)</label>
+                    <label class="pg-switch">
+                        <input type="checkbox" id="pg-stream-checkbox" checked>
+                        <span class="pg-switch-slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="pg-nav-divider"></div>
+        </aside>
+
+        <!-- 2. Middle Column: Chat Experience -->
+        <main class="pg-chat-column">
+            <div class="pg-messages-wrapper" id="pg-messages">
+                <!-- Welcome State -->
+                <div class="pg-welcome" id="pg-empty">
+                    <div class="welcome-card">
+                        <div class="welcome-icon">
+                            <i class="fas fa-microchip"></i>
+                        </div>
+                        <h3 data-i18n="playground.welcome">推理实验室</h3>
+                        <p data-i18n="playground.emptyHint">在右侧配置设定并选择模型后，即可开始高阶推理测试。</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modern Floating Input -->
+            <div class="pg-input-boundary">
+                <div class="pg-input-box">
+                    <div id="pg-attachments-preview" class="pg-previews"></div>
+                    <div class="pg-input-inner">
+                        <button class="pg-inner-btn" id="pg-attach-btn" data-i18n-title="playground.attachTitle" title="上传附件"><i class="fas fa-paperclip"></i></button>
+                        <textarea id="pg-input" class="pg-textarea-auto" data-i18n-placeholder="playground.inputPlaceholder" placeholder="在此输入指令..." rows="1" disabled></textarea>
+                        <button class="pg-send-pill" id="pg-send-btn" disabled>
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                        <button class="pg-stop-pill" id="pg-stop-btn" style="display:none">
+                            <i class="fas fa-stop"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- 3. Right Panel: Configuration & Parameters -->
+        <aside class="pg-config-panel">
+            <!-- System Prompt Section -->
+            <div class="pg-panel-section">
+                <div class="section-header">
+                    <label class="pg-label" data-i18n="playground.systemRole">系统设定 (System Role)</label>
+                </div>
+                <textarea id="pg-system-input" class="pg-system-textarea" data-i18n-placeholder="playground.systemRolePlaceholder" placeholder="在此定义 AI 的角色、语气和背景知识..."></textarea>
+            </div>
+
+            <div class="pg-nav-divider"></div>
+
+            <!-- Parameters Section -->
+            <div class="pg-panel-section">
+                <label class="pg-label" data-i18n="playground.hyperparameters">超参数调优 (Hyperparameters)</label>
+                
+                <div class="pg-slider-group">
+                    <div class="slider-info">
+                        <span>Temperature</span>
+                        <span class="val" id="pg-temp-val">0.7</span>
+                    </div>
+                    <input type="range" id="pg-temp-slider" min="0" max="2" step="0.1" value="0.7">
+                </div>
+
+                <div class="pg-slider-group">
+                    <div class="slider-info">
+                        <span>Max Tokens</span>
+                        <input type="number" id="pg-max-tokens" value="4096" class="pg-num-input">
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Hidden file input -->
+    <input type="file" id="pg-file-input" accept="image/*,.pdf" multiple style="display:none;">
+</section>

@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#059669">
+    <title>API 大锅饭 - Key 管理</title>
+    <link rel="stylesheet" href="app/base.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background: var(--bg-secondary);
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background: var(--bg-primary);
+            border-bottom: 1px solid var(--border-color);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: var(--shadow-sm);
+        }
+        .navbar-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .navbar-brand .icon {
+            font-size: 28px;
+            color: var(--primary-color);
+        }
+        .navbar-brand .badge {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+            color: #ffffff;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: var(--radius-full);
+            font-weight: 600;
+        }
+
+        /* 主容器 */
+        .main-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px 24px;
+        }
+
+        /* 统计卡片网格 */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 1.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary-30);
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+        }
+        .stat-card.purple::before { background: linear-gradient(90deg, var(--indigo-500), var(--indigo-600)); }
+        .stat-card.green::before { background: linear-gradient(90deg, var(--success-color), var(--primary-light)); }
+        .stat-card.pink::before { background: linear-gradient(90deg, #ec4899, #f472b6); }
+        .stat-card.cyan::before { background: linear-gradient(90deg, var(--info-color), #22d3ee); }
+        .stat-card .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .stat-card.purple .value { color: var(--indigo-500); }
+        .stat-card.green .value { color: var(--success-color); }
+        .stat-card.pink .value { color: #ec4899; }
+        .stat-card.cyan .value { color: var(--info-color); }
+
+        /* 分布统计样式 */
+        .distribution-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .distribution-item {
+            width: 100%;
+        }
+        .dist-info {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+        .dist-name {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .dist-count {
+            color: var(--text-secondary);
+        }
+        .dist-bar {
+            height: 8px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+        .dist-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-color), var(--primary-light));
+            border-radius: var(--radius-full);
+        }
+
+        /* 区块标题 */
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* 工具栏 */
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            width: 220px;
+            transition: var(--transition);
+            flex: 1;
+            min-width: 180px;
+        }
+        .sort-select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 10px 14px;
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: var(--transition);
+            flex-shrink: 0;
+        }
+        .search-box:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--primary-10);
+        }
+        .search-box::placeholder { color: var(--text-tertiary); }
+
+        /* Key 列表 */
+        .keys-section { margin-top: 10px; }
+        .keys-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+        .keys-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .key-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            transition: var(--transition);
+            box-shadow: var(--shadow-sm);
+        }
+        .key-card:hover {
+            border-color: var(--primary-color);
+            box-shadow: var(--shadow-md);
+        }
+        .key-card.disabled { opacity: 0.6; }
+        .key-info { flex: 1; min-width: 200px; }
+        .key-name {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 6px;
+        }
+        .key-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-copy {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: var(--radius-md);
+            transition: var(--transition);
+        }
+        .btn-copy:hover {
+            background: var(--bg-tertiary);
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        /* Key 统计 */
+        .key-stats {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            flex: 3;
+            align-items: flex-start;
+        }
+        .key-stat {
+            flex: 1;
+            min-width: 140px;
+            padding: 4px 8px;
+            border-left: 2px solid var(--border-color);
+        }
+        .key-stat:first-child {
+            border-left: none;
+        }
+        .key-stat .label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+        .key-stat .value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .key-stat .value.warning { color: var(--warning-color); }
+        .key-stat .value.danger { color: var(--danger-color); }
+        .key-stat .value.muted { color: var(--text-tertiary); font-size: 12px; }
+        
+        /* Key 详情中的分布 */
+        .key-dist-mini {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .dist-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            color: var(--text-secondary);
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .dist-badge b { color: var(--primary-color); }
+        
+        .progress-bar {
+
+            height: 6px;
+            background: var(--bg-tertiary);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color), var(--primary-light));
+            transition: width 0.3s;
+        }
+        .progress-bar .fill.warning { background: linear-gradient(90deg, var(--warning-color), #fbbf24); }
+        .progress-bar .fill.danger { background: linear-gradient(90deg, var(--danger-color), #f87171); }
+
+        /* Key 操作 */
+        .key-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* 模态框 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--overlay-bg);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+        .modal-overlay.active { display: flex; }
+        .modal {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 0;
+            max-width: 500px;
+            width: 100%;
+            overflow: hidden;
+            box-shadow: var(--shadow-xl);
+            animation: slideIn 0.3s ease;
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 4px;
+            line-height: 1;
+            transition: var(--transition);
+        }
+        .modal-close:hover { color: var(--text-primary); }
+        .modal-body { padding: 24px; }
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        /* 表单 */
+        .form-group { margin-bottom: 20px; }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        .form-group input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 12px 16px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px var(--primary-10);
+        }
+        .form-group input::placeholder { color: var(--text-tertiary); }
+
+        /* Key 显示 */
+        .key-display {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            color: var(--success-color);
+            word-break: break-all;
+            margin: 16px 0;
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        .empty-state p { font-size: 14px; margin-bottom: 20px; }
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        .btn {
+            height: 2.5rem;
+        }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .key-card { gap: 12px; }
+            .key-stats { gap: 16px; }
+            .key-stat { min-width: 60px; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        @media (max-width: 768px) {
+            .navbar-inner { padding: 0 16px; }
+            .main-container { padding: 20px 16px; }
+            .stats-grid { grid-template-columns: 1fr; }
+            .key-card {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 16px;
+            }
+            .key-info { margin-bottom: 4px; }
+            .key-stats {
+                width: 100%;
+                justify-content: flex-start;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+            .key-stat { min-width: 70px; text-align: left; }
+            .key-actions {
+                width: 100%;
+                justify-content: flex-start;
+                padding-top: 12px;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stat-card .value { font-size: 1.5rem; }
+            .keys-header { flex-direction: column; align-items: stretch; gap: 12px; }
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .toolbar .search-wrapper {
+                display: flex;
+                gap: 8px;
+                width: 100%;
+            }
+            .search-box {
+                flex: 1;
+                min-width: 0;
+            }
+            .sort-select {
+                width: auto;
+                flex-shrink: 0;
+            }
+            .toolbar .btn-limit-wrapper {
+                width: 100%;
+            }
+            .toolbar .btn-limit-wrapper .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            .key-stats {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+            .key-stat {
+                min-width: unset;
+                text-align: center;
+                border-left: none;
+                padding: 4px;
+            }
+            .key-actions {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            .navbar-brand .badge { display: none; }
+            .navbar-actions { gap: 8px; }
+            #createKeyBtn .btn-text { display: none; }
+            .theme-toggle { width: 36px; height: 36px; font-size: 1rem; }
+        }
+
+        @keyframes slideIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        /* 按钮扩展样式 */
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-lg {
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+        }
+
+        /* 移动端 Key 操作按钮样式 */
+        @media (max-width: 480px) {
+            .key-actions .btn-sm {
+                padding: 10px 12px;
+                font-size: 13px;
+                height: 44px;
+            }
+        }
+
+        /* 主题切换按钮 */
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.125rem;
+            transition: var(--transition);
+        }
+        .theme-toggle:hover {
+            background: var(--bg-secondary);
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        .theme-toggle .fa-sun { display: none; }
+        .theme-toggle .fa-moon { display: inline-block; }
+        [data-theme="dark"] .theme-toggle .fa-sun { display: inline-block; }
+        [data-theme="dark"] .theme-toggle .fa-moon { display: none; }
+
+        /* Calendar Styles */
+        .calendar-panel { background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--radius-xl); padding: 20px; margin-bottom: 2rem; box-shadow: var(--shadow-sm); }
+        .calendar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .calendar-legend { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-tertiary); }
+        .calendar-legend .level { width: 10px; height: 10px; border-radius: 2px; }
+        .calendar-wrapper { overflow-x: auto; padding: 25px 0 10px; scrollbar-width: thin; margin-top: -15px; display: flex; justify-content: center; }
+        .calendar-grid { display: grid; grid-auto-flow: column; grid-template-rows: repeat(7, 11px); gap: 3px; min-width: max-content; padding: 2px; }
+        .calendar-day { width: 11px; height: 11px; border-radius: 2px; background: var(--bg-secondary); position: relative; cursor: pointer; transition: transform 0.1s; }
+        .calendar-day:hover { transform: scale(1.2); z-index: 10; outline: 1px solid var(--primary-color); }
+        .calendar-footer { margin-top: 10px; font-size: 12px; color: var(--text-tertiary); text-align: right; }
+        .level-0, .calendar-day[data-level="0"] { background: var(--bg-secondary); }
+        .level-1, .calendar-day[data-level="1"] { background: #9be9a8; }
+        .level-2, .calendar-day[data-level="2"] { background: #40c463; }
+        .level-3, .calendar-day[data-level="3"] { background: #30a14e; }
+        .level-4, .calendar-day[data-level="4"] { background: #216e39; }
+        [data-theme="dark"] .level-1, [data-theme="dark"] .calendar-day[data-level="1"] { background: #0e4429; }
+        [data-theme="dark"] .level-2, [data-theme="dark"] .calendar-day[data-level="2"] { background: #006d32; }
+        [data-theme="dark"] .level-3, [data-theme="dark"] .calendar-day[data-level="3"] { background: #26a641; }
+        [data-theme="dark"] .level-4, [data-theme="dark"] .calendar-day[data-level="4"] { background: #39d353; }
+        .calendar-tooltip { position: fixed; padding: 6px 10px; background: rgba(0,0,0,0.9); color: #fff; font-size: 11px; border-radius: 4px; pointer-events: none; z-index: 1000; display: none; box-shadow: 0 3px 10px rgba(0,0,0,0.3); white-space: pre-line; line-height: 1.4; }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <div class="navbar-brand">
+                <span class="icon">🍲</span>
+                <span>API 大锅饭</span>
+                <span class="badge">管理端</span>
+            </div>
+            <div class="navbar-actions" style="display: flex; align-items: center; gap: 12px;">
+                <button class="theme-toggle" id="themeToggle" title="切换主题">
+                    <i class="fas fa-sun"></i>
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button id="createKeyBtn" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> <span class="btn-text">生成新 Key</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+        <!-- 统计卡片 -->
+        <div class="stats-grid">
+            <div class="stat-card purple">
+                <div class="label">总 Key 数</div>
+                <div class="value" id="totalKeys">0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">已启用</div>
+                <div class="value" id="enabledKeys">0</div>
+            </div>
+            <div class="stat-card pink">
+                <div class="label">今日总调用</div>
+                <div class="value" id="todayUsage">0</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">QPS: <span id="currentQps" style="font-weight:700;color:var(--primary-color)">0.00</span> (峰值: <span id="maxQps">0.00</span>) | RPM: <span id="currentRpm" style="font-weight:700;color:var(--primary-color)">0.00</span> (峰值: <span id="maxRpm">0.00</span>)</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="label">累计调用</div>
+                <div class="value" id="totalUsage">0</div>
+            </div>
+            <div class="stat-card green">
+                <div class="label">今日总 Tokens</div>
+                <div class="value" id="todayTokens">0</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">TPS: <span id="currentTps" style="font-weight:700;color:var(--primary-color)">0.00</span> (峰值: <span id="maxTps">0.00</span>)</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="label">今日缓存 Tokens</div>
+                <div class="value" id="todayCachedTokens">0</div>
+            </div>
+            <div class="stat-card pink">
+                <div class="label">累计 Tokens</div>
+                <div class="value" id="totalTokens">0</div>
+            </div>
+            <div class="stat-card cyan">
+                <div class="label">累计缓存 Tokens</div>
+                <div class="value" id="totalCachedTokens">0</div>
+            </div>
+        </div>
+
+        <!-- 使用分布统计区域 -->
+        <div id="usageStatsSection" style="margin-bottom: 2.5rem; display: none;">
+            <div class="section-title">
+                <i class="fas fa-chart-pie"></i> 节点与 Token 使用统计 (最近 3 个月)
+            </div>
+            <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
+                <!-- Token 用量日历 -->
+                <div class="stat-card" style="text-align: left; padding: 20px;">
+                    <div class="label" style="margin-bottom: 10px; font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>Token 用量日历</span>
+                        <div class="calendar-legend" style="gap: 3px;">
+                            <div class="level level-1" style="width:8px;height:8px"></div>
+                            <div class="level level-4" style="width:8px;height:8px"></div>
+                        </div>
+                    </div>
+                    <div class="calendar-wrapper" style="justify-content: flex-start; padding: 10px 0 5px; margin-top: 0;">
+                        <div class="calendar-grid" id="calendarGrid" style="grid-template-rows: repeat(7, 11px); gap: 3px;"></div>
+                    </div>
+                    <div id="calendarFooter" style="font-size: 11px; color: var(--text-tertiary); margin-top: 8px;"></div>
+                </div>
+                
+                <!-- 提供商分布 -->
+                <div class="stat-card" style="text-align: left; padding: 20px;">
+                    <div class="label" style="margin-bottom: 15px; font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>提供商占比 (Providers)</span>
+                        <span id="providerTotalCount" style="color: var(--primary-color);">0 次</span>
+                    </div>
+                    <div id="providerDistribution" class="distribution-list">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+                <!-- 模型分布 -->
+                <div class="stat-card" style="text-align: left; padding: 20px;">
+                    <div class="label" style="margin-bottom: 15px; font-weight: 600; display: flex; justify-content: space-between;">
+                        <span>模型活跃度 (Models)</span>
+                        <span id="modelTotalCount" style="color: var(--primary-color);">0 次</span>
+                    </div>
+                    <div id="modelDistribution" class="distribution-list">
+                        <!-- 动态填充 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="usageTooltip" class="calendar-tooltip"></div>
+
+
+        <!-- Key 列表区域 -->
+
+        <div class="keys-section">
+            <div class="keys-header">
+                <h2 class="section-title" style="margin-bottom: 0;"><i class="fas fa-key"></i> Key 列表</h2>
+                <div class="toolbar">
+                    <div class="search-wrapper">
+                        <input type="text" id="searchBox" class="search-box" placeholder="搜索名称或 Key...">
+                        <select id="sortSelect" class="sort-select">
+                            <option value="name-asc">名称 A-Z</option>
+                            <option value="name-desc">名称 Z-A</option>
+                            <option value="usage-desc">今日用量 ↓</option>
+                            <option value="usage-asc">今日用量 ↑</option>
+                            <option value="total-desc">累计用量 ↓</option>
+                            <option value="lastUsed-desc">最近使用 ↓</option>
+                            <option value="qps-desc">QPS 速率 ↓</option>
+                            <option value="rpm-desc">RPM 频率 ↓</option>
+                            <option value="created-desc">创建时间 ↓</option>
+                        </select>
+                    </div>
+                    <div class="btn-limit-wrapper">
+                        <button class="btn btn-secondary btn-sm" onclick="resetAllTokenStats()">
+                            <i class="fas fa-eraser"></i> <span class="btn-limit-text">重置全部 Token</span>
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="showApplyLimitModal()">
+                            <i class="fas fa-cog"></i> <span class="btn-limit-text">批量应用限额</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="keysList" class="keys-list"></div>
+        </div>
+    </div>
+
+    <!-- 创建 Key 模态框 -->
+    <div id="createModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> 生成新 API Key</h3>
+                <button class="modal-close" onclick="closeModal('createModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Key 名称 (可选)</label>
+                    <input type="text" id="keyName" placeholder="例如：测试用户 1">
+                </div>
+                <div class="form-group">
+                    <label>每日调用限额</label>
+                    <input type="number" id="keyLimit" placeholder="500" min="1">
+                </div>
+                <button class="btn btn-primary btn-block" onclick="createKey()">
+                    <i class="fas fa-check"></i> 生成 Key
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 显示新 Key 模态框 -->
+    <div id="showKeyModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-key"></i> Key 已生成</h3>
+                <button class="modal-close" onclick="closeModal('showKeyModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--text-secondary);margin-bottom:10px">请妥善保存此 Key，关闭后将无法再次查看完整内容：</p>
+                <div class="key-display" id="newKeyDisplay"></div>
+                <button class="btn btn-secondary btn-block" onclick="copyKey()">
+                    <i class="fas fa-copy"></i> 复制 Key
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改限额模态框 -->
+    <div id="editLimitModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-sliders-h"></i> 修改每日限额</h3>
+                <button class="modal-close" onclick="closeModal('editLimitModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>新的每日限额</label>
+                    <input type="number" id="newLimit" min="1">
+                </div>
+                <input type="hidden" id="editKeyId">
+                <button class="btn btn-primary btn-block" onclick="updateLimit()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 修改名称模态框 -->
+    <div id="editNameModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-edit"></i> 修改 Key 名称</h3>
+                <button class="modal-close" onclick="closeModal('editNameModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>新的名称</label>
+                    <input type="text" id="newName" placeholder="例如：测试用户 1">
+                </div>
+                <input type="hidden" id="editNameKeyId">
+                <button class="btn btn-primary btn-block" onclick="updateName()">
+                    <i class="fas fa-save"></i> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量应用限额模态框 -->
+    <div id="applyLimitModal" class="modal-overlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> 批量应用每日限额</h3>
+                <button class="modal-close" onclick="closeModal('applyLimitModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>每日调用限额</label>
+                    <input type="number" id="applyLimitValue" placeholder="500" min="1">
+                </div>
+                <div style="background: var(--danger-bg); border: 1px solid var(--danger-border); border-radius: var(--radius-lg); padding: 12px; margin-top: 12px;">
+                    <p style="color: var(--danger-text); font-size: 13px; margin: 0;"><i class="fas fa-exclamation-triangle"></i> 风险提示：</p>
+                    <ul style="color: var(--danger-text); font-size: 12px; margin: 8px 0 0 16px; padding: 0;">
+                        <li>所有 Key 的每日限额将被覆盖</li>
+                        <li>已单独设置限额的 Key 也会被修改</li>
+                        <li>此操作不可撤销</li>
+                    </ul>
+                </div>
+                <button class="btn btn-primary btn-block" style="margin-top: 16px;" onclick="applyDailyLimitToAll()">
+                    <i class="fas fa-check"></i> 应用限额
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentNewKey = '';
+        let allKeys = [];
+        let systemConfig = { defaultDailyLimit: 500 };
+        const API_BASE = '/api/potluck';
+
+        function getToken() { return localStorage.getItem('authToken'); }
+        function formatNumber(num) { return new Intl.NumberFormat('zh-CN').format(Number(num || 0)); }
+        function formatTokenCompact(num) {
+            const value = Number(num || 0);
+            if (!Number.isFinite(value)) return '0';
+            const abs = Math.abs(value);
+            const units = [
+                { threshold: 1e9, suffix: 'B' },
+                { threshold: 1e6, suffix: 'M' },
+                { threshold: 1e3, suffix: 'K' }
+            ];
+            for (const unit of units) {
+                if (abs >= unit.threshold) {
+                    const scaled = value / unit.threshold;
+                    const digits = Math.abs(scaled) >= 100 ? 0 : Math.abs(scaled) >= 10 ? 1 : 2;
+                    return `${scaled.toFixed(digits).replace(/\.0+$|(\.\d*[1-9])0+$/,'$1')}${unit.suffix}`;
+                }
+            }
+            return formatNumber(value);
+        }
+        function usageCount(entry) { return typeof entry === 'number' ? entry : Number(entry?.requestCount || 0); }
+        function usageTokens(entry) { return typeof entry === 'number' ? 0 : Number(entry?.totalTokens || 0); }
+
+        async function apiRequest(url, options = {}) {
+            const token = getToken();
+            const headers = { 'Content-Type': 'application/json', ...options.headers };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            const response = await fetch(url, { ...options, headers });
+            const data = await response.json();
+            if (response.status === 401) { window.location.href = '/login.html'; return null; }
+            return data;
+        }
+
+        async function loadData() {
+            const result = await apiRequest(`${API_BASE}/keys`);
+            if (!result || !result.success) { showToast('加载失败', 'error'); return; }
+            const { keys, stats } = result.data;
+            document.getElementById('totalKeys').textContent = stats.totalKeys;
+            document.getElementById('enabledKeys').textContent = stats.enabledKeys;
+            document.getElementById('todayUsage').textContent = stats.todayTotalUsage;
+            document.getElementById('totalUsage').textContent = stats.totalUsage;
+            document.getElementById('todayTokens').textContent = formatTokenCompact(stats.todayTotalTokens);
+            document.getElementById('todayCachedTokens').textContent = formatTokenCompact(stats.todayCachedTokens || 0);
+            document.getElementById('totalTokens').textContent = formatTokenCompact(stats.totalTokens);
+            document.getElementById('totalCachedTokens').textContent = formatTokenCompact(stats.totalCachedTokens || 0);
+            document.getElementById('currentQps').textContent = (stats.qps || 0).toFixed(2);
+            document.getElementById('maxQps').textContent = (stats.maxQps || 0).toFixed(2);
+            document.getElementById('currentRpm').textContent = (stats.rpm || 0).toFixed(2);
+            document.getElementById('maxRpm').textContent = (stats.maxRpm || 0).toFixed(2);
+            document.getElementById('currentTps').textContent = (stats.tps || 0).toFixed(2);
+            document.getElementById('maxTps').textContent = (stats.maxTps || 0).toFixed(2);
+            
+            // 渲染使用历史分布
+            renderUsageHistory(stats.usageHistory);
+            renderCalendar(stats.usageHistory || {});
+            
+            allKeys = keys;
+            applyFilterAndSort();
+        }
+
+        function renderCalendar(usageHistory = {}) {
+            const grid = document.getElementById('calendarGrid'), tooltip = document.getElementById('usageTooltip');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const now = new Date();
+            const startDate = new Date();
+            startDate.setMonth(now.getMonth() - 3);
+            startDate.setDate(startDate.getDate() - startDate.getDay());
+            
+            // 提取每日总 Token 和请求数
+            const dailyData = {};
+            Object.entries(usageHistory).forEach(([date, data]) => {
+                dailyData[date] = {
+                    totalTokens: data.summary?.totalTokens || 0,
+                    requestCount: data.summary?.requestCount || 0,
+                    maxQps: data.summary?.maxQps || 0,
+                    maxRpm: data.summary?.maxRpm || 0,
+                    maxTps: data.summary?.maxTps || 0
+                };
+            });
+            
+            const values = Object.values(dailyData).map(d => d.totalTokens);
+            const max = Math.max(...values, 1000);
+            const dayCount = Math.floor((now - startDate) / (24 * 3600 * 1000)) + 1;
+            let currentTotal = 0;
+            
+            for(let i = 0; i < dayCount; i++){
+                const date = new Date(startDate);
+                date.setDate(startDate.getDate() + i);
+                if (date > now) break;
+                
+                // 统一使用北京时间 (UTC+8) 生成 key，与后端保持一致
+                const utc8Date = new Date(date.getTime() + (8 * 60 * 60 * 1000));
+                const dateKey = utc8Date.toISOString().split('T')[0];
+                const entry = dailyData[dateKey] || { totalTokens: 0, requestCount: 0 };
+                const tokens = entry.totalTokens;
+                const requests = entry.requestCount;
+                currentTotal += tokens;
+                
+                let level = 0;
+                if (tokens > 0) {
+                    const ratio = tokens / max;
+                    if (ratio < 0.25) level = 1;
+                    else if (ratio < 0.5) level = 2;
+                    else if (ratio < 0.75) level = 3;
+                    else level = 4;
+                }
+                
+                const day = document.createElement('div');
+                day.className = 'calendar-day';
+                day.dataset.level = level;
+                
+                const tipText = `${dateKey}: ${formatNumber(requests)} 次请求, ${formatTokenCompact(tokens)} Tokens${entry.maxQps ? `\n峰值: ${entry.maxQps.toFixed(2)} QPS / ${entry.maxRpm.toFixed(0)} RPM / ${entry.maxTps.toFixed(2)} TPS` : ''}`;
+                day.onmouseenter = (e) => {
+                    tooltip.innerText = tipText;
+                    tooltip.style.display = 'block';
+                    const rect = day.getBoundingClientRect();
+                    tooltip.style.left = `${rect.left + rect.width / 2 - tooltip.offsetWidth / 2}px`;
+                    tooltip.style.top = `${rect.top - tooltip.offsetHeight - 8}px`;
+                };
+                day.onmouseleave = () => { tooltip.style.display = 'none'; };
+                
+                grid.appendChild(day);
+            }
+            document.getElementById('calendarFooter').textContent = `最近三个月累计消耗: ${formatTokenCompact(currentTotal)} Tokens`;
+        }
+
+        /**
+         * 渲染最近 7 天使用历史分布
+         */
+        function renderUsageHistory(usageHistory) {
+            if (!usageHistory || Object.keys(usageHistory).length === 0) {
+                document.getElementById('usageStatsSection').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('usageStatsSection').style.display = 'block';
+            
+            const aggregatedProviders = {};
+            const aggregatedModels = {};
+            let totalCalls = 0;
+            let totalTokens = 0;
+
+            // 汇总最近 7 天的数据
+            Object.values(usageHistory).forEach(day => {
+                if (day.providers) {
+                    Object.entries(day.providers).forEach(([p, usage]) => {
+                        aggregatedProviders[p] = (aggregatedProviders[p] || 0) + usageCount(usage);
+                        totalCalls += usageCount(usage);
+                        totalTokens += usageTokens(usage);
+                    });
+                }
+                if (day.models) {
+                    Object.entries(day.models).forEach(([m, usage]) => {
+                        aggregatedModels[m] = (aggregatedModels[m] || 0) + usageCount(usage);
+                    });
+                }
+            });
+
+            if (totalCalls === 0) {
+                document.getElementById('usageStatsSection').style.display = 'none';
+                return;
+            }
+
+            // 渲染提供商分布
+            renderDistribution('providerDistribution', aggregatedProviders, totalCalls);
+            document.getElementById('providerTotalCount').textContent = `${formatNumber(totalCalls)} 次 / ${formatTokenCompact(totalTokens)} Tokens`;
+
+            // 渲染模型分布 (模型总数与提供商总数一致)
+            renderDistribution('modelDistribution', aggregatedModels, totalCalls);
+            document.getElementById('modelTotalCount').textContent = `${formatNumber(totalCalls)} 次`;
+        }
+
+        function renderDistribution(elementId, data, total) {
+            const container = document.getElementById(elementId);
+            const sorted = Object.entries(data).sort((a, b) => b[1] - a[1]);
+            
+            // 最多显示前 3 个
+            const topData = sorted.slice(0, 3);
+            
+            container.innerHTML = topData.map(([name, count]) => {
+                const percent = Math.round((count / total) * 100);
+                return `
+                    <div class="distribution-item">
+                        <div class="dist-info">
+                            <span class="dist-name">${escapeHtml(name)}</span>
+                            <span class="dist-count">${formatNumber(count)} 次 (${percent}%)</span>
+                        </div>
+                        <div class="dist-bar">
+                            <div class="dist-fill" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            if (sorted.length > 3) {
+                const otherCount = sorted.slice(3).reduce((sum, item) => sum + item[1], 0);
+                const otherPercent = Math.round((otherCount / total) * 100);
+                container.innerHTML += `
+                    <div class="distribution-item">
+                        <div class="dist-info">
+                            <span class="dist-name" style="font-style: italic;">其他 (${sorted.length - 3} 个)</span>
+                            <span class="dist-count">${formatNumber(otherCount)} 次 (${otherPercent}%)</span>
+                        </div>
+                        <div class="dist-bar">
+                            <div class="dist-fill" style="width: ${otherPercent}%; background: #94a3b8;"></div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+
+        // 显示批量应用限额模态框
+        function showApplyLimitModal() {
+            document.getElementById('applyLimitValue').value = systemConfig.defaultDailyLimit || 500;
+            openModal('applyLimitModal');
+        }
+
+        // 批量应用每日限额
+        async function applyDailyLimitToAll() {
+            const dailyLimit = parseInt(document.getElementById('applyLimitValue').value);
+            if (!dailyLimit || dailyLimit < 1) {
+                showToast('请输入有效的限额', 'error');
+                return;
+            }
+            
+            showToast('正在应用限额...', 'success');
+            const result = await apiRequest(`${API_BASE}/keys/apply-limit`, { 
+                method: 'POST', 
+                body: JSON.stringify({ dailyLimit }) 
+            });
+            if (result && result.success) {
+                showToast(result.message, 'success');
+                closeModal('applyLimitModal');
+                loadData();
+            } else {
+                showToast(result?.error?.message || '操作失败', 'error');
+            }
+        }
+
+        function applyFilterAndSort() {
+            const searchTerm = document.getElementById('searchBox').value.toLowerCase().trim();
+            const sortValue = document.getElementById('sortSelect').value;
+            let filtered = allKeys;
+            if (searchTerm) {
+                filtered = allKeys.filter(k => k.name.toLowerCase().includes(searchTerm) || k.id.toLowerCase().includes(searchTerm));
+            }
+            const [field, order] = sortValue.split('-');
+            filtered.sort((a, b) => {
+                let va, vb;
+                if (field === 'name') { va = a.name.toLowerCase(); vb = b.name.toLowerCase(); }
+                else if (field === 'usage') { va = a.todayUsage; vb = b.todayUsage; }
+                else if (field === 'total') { va = a.totalUsage; vb = b.totalUsage; }
+                else if (field === 'lastUsed') { va = a.lastUsedAt || ''; vb = b.lastUsedAt || ''; }
+                else if (field === 'qps') { va = a.qps || 0; vb = b.qps || 0; }
+                else if (field === 'rpm') { va = a.rpm || 0; vb = b.rpm || 0; }
+                else if (field === 'created') { va = a.createdAt || ''; vb = b.createdAt || ''; }
+                if (va < vb) return order === 'asc' ? -1 : 1;
+                if (va > vb) return order === 'asc' ? 1 : -1;
+                return 0;
+            });
+            renderKeys(filtered);
+        }
+
+        function formatTime(isoStr) {
+            if (!isoStr) return '从未';
+            const d = new Date(isoStr);
+            const now = new Date();
+            const diff = now - d;
+            if (diff < 60000) return '刚刚';
+            if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+            if (diff < 604800000) return Math.floor(diff / 86400000) + '天前';
+            return d.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function renderKeys(keys) {
+            const container = document.getElementById('keysList');
+            if (allKeys.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div class="icon"><i class="fas fa-inbox"></i></div><p>还没有任何 API Key</p><button class="btn btn-primary btn-lg" onclick="openModal(\'createModal\')"><i class="fas fa-plus"></i> 生成第一个 Key</button></div>';
+                return;
+            }
+            if (keys.length === 0) {
+                container.innerHTML = '<div class="no-results">没有匹配的结果</div>';
+                return;
+            }
+            container.innerHTML = keys.map(key => {
+                const usagePercent = key.dailyLimit > 0 ? (key.todayUsage / key.dailyLimit * 100) : 0;
+                const progressClass = usagePercent >= 90 ? 'danger' : usagePercent >= 70 ? 'warning' : '';
+                const valueClass = usagePercent >= 90 ? 'danger' : usagePercent >= 70 ? 'warning' : '';
+                
+                // 汇总该 Key 的提供商分布 (最近 7 天)
+                const providers = {};
+                if (key.usageHistory) {
+                    Object.values(key.usageHistory).forEach(day => {
+                        if (day.providers) {
+                            Object.entries(day.providers).forEach(([p, usage]) => {
+                                providers[p] = (providers[p] || 0) + usageCount(usage);
+                            });
+                        }
+                    });
+                }
+                const topProviders = Object.entries(providers)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 3);
+                
+                const providerBadges = topProviders.map(([name, count]) => 
+                    `<span class="dist-badge">${escapeHtml(name)}: <b>${formatNumber(count)}</b></span>`
+                ).join('');
+
+                return `<div class="key-card ${key.enabled ? '' : 'disabled'}">
+                    <div class="key-info">
+                        <div class="key-name">${escapeHtml(key.name)} <button class="btn-copy" style="margin-left: 4px; padding: 2px 6px;" onclick="openEditName('${key.id}', '${escapeHtml(key.name).replace(/'/g, "\\'")}')" title="修改名称"><i class="fas fa-edit"></i></button></div>
+                        <div class="key-id">${key.maskedKey} <button class="btn-copy" onclick="copyToClipboard('${key.id}')" title="复制完整 Key"><i class="fas fa-copy"></i></button></div>
+                        ${providerBadges ? `<div class="key-dist-mini">${providerBadges}</div>` : ''}
+                    </div>
+                    <div class="key-stats">
+
+                        <div class="key-stat">
+                            <div class="label">今日/限额</div>
+                            <div class="value ${valueClass}">${key.todayUsage}/${key.dailyLimit}</div>
+                            <div class="value muted">${formatTokenCompact(key.todayTotalTokens || 0)} Tokens ${key.todayCachedTokens ? `(含 ${formatTokenCompact(key.todayCachedTokens)} 缓存)` : ''}</div>
+                            <div class="progress-bar"><div class="fill ${progressClass}" style="width:${Math.min(usagePercent, 100)}%"></div></div>
+                        </div>
+                        <div class="key-stat">
+                            <div class="label">累计数据</div>
+                            <div class="value">${key.totalUsage} 次请求</div>
+                            <div class="value muted">${formatTokenCompact(key.totalTokens || 0)} Tokens ${key.totalCachedTokens ? `(含 ${formatTokenCompact(key.totalCachedTokens)} 缓存)` : ''}</div>
+                        </div>
+                        <div class="key-stat">
+                            <div class="label">请求频率</div>
+                            <div class="value">${(key.qps || 0).toFixed(2)} QPS / ${(key.rpm || 0).toFixed(0)} RPM</div>
+                            <div class="value muted">峰值: ${(key.maxQps || 0).toFixed(2)} QPS / ${(key.maxRpm || 0).toFixed(0)} RPM</div>
+                        </div>
+                        <div class="key-stat">
+                            <div class="label">Token 速率</div>
+                            <div class="value">${(key.tps || 0).toFixed(1)} TPS</div>
+                            <div class="value muted">峰值: ${(key.maxTps || 0).toFixed(1)} TPS</div>
+                        </div>
+                        <div class="key-stat">
+                            <div class="label">最后调用</div>
+                            <div class="value muted">${formatTime(key.lastUsedAt)}</div>
+                        </div>
+                        <div class="key-stat">
+                            <div class="label">状态</div>
+                            <div class="value" style="color:${key.enabled ? 'var(--success-color)' : 'var(--danger-color)'}">${key.enabled ? '启用' : '禁用'}</div>
+                        </div>
+                    </div>
+                    <div class="key-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="resetUsage('${key.id}')" title="重置今日用量"><i class="fas fa-redo"></i> <span class="btn-text">重置</span></button>
+                        <button class="btn btn-secondary btn-sm" onclick="resetTokenStats('${key.id}')" title="重置 Token 统计"><i class="fas fa-eraser"></i> <span class="btn-text">Token</span></button>
+                        <button class="btn btn-secondary btn-sm" onclick="openEditLimit('${key.id}', ${key.dailyLimit})" title="修改限额"><i class="fas fa-sliders-h"></i> <span class="btn-text">限额</span></button>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleKey('${key.id}')" title="${key.enabled ? '禁用' : '启用'}">${key.enabled ? '<i class="fas fa-toggle-on"></i>' : '<i class="fas fa-toggle-off"></i>'} <span class="btn-text">${key.enabled ? '禁用' : '启用'}</span></button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteKey('${key.id}')" title="删除"><i class="fas fa-trash"></i> <span class="btn-text">删除</span></button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function createKey() {
+            const name = document.getElementById('keyName').value;
+            const dailyLimit = parseInt(document.getElementById('keyLimit').value) || systemConfig.defaultDailyLimit;
+            const result = await apiRequest(`${API_BASE}/keys`, { method: 'POST', body: JSON.stringify({ name, dailyLimit }) });
+            if (result && result.success) {
+                currentNewKey = result.data.id;
+                document.getElementById('newKeyDisplay').textContent = currentNewKey;
+                closeModal('createModal');
+                openModal('showKeyModal');
+                loadData();
+                document.getElementById('keyName').value = '';
+                document.getElementById('keyLimit').value = '';
+            } else {
+                showToast(result?.error?.message || '创建失败', 'error');
+            }
+        }
+
+        function copyToClipboardFallback(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '-9999px';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast('已复制到剪贴板', 'success');
+            } catch (err) {
+                showToast('复制失败，请手动复制', 'error');
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function copyKey() {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(currentNewKey).then(() => showToast('已复制到剪贴板', 'success')).catch(() => copyToClipboardFallback(currentNewKey));
+            } else {
+                copyToClipboardFallback(currentNewKey);
+            }
+        }
+
+        function copyToClipboard(text) {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => showToast('Key 已复制', 'success')).catch(() => copyToClipboardFallback(text));
+            } else {
+                copyToClipboardFallback(text);
+            }
+        }
+
+        async function resetUsage(keyId) {
+            if (!confirm('确定要重置该 Key 的今日调用次数吗？')) return;
+            const result = await apiRequest(`${API_BASE}/keys/${encodeURIComponent(keyId)}/reset`, { method: 'POST' });
+            if (result && result.success) { showToast('已重置', 'success'); loadData(); }
+            else { showToast(result?.error?.message || '操作失败', 'error'); }
+        }
+
+        async function resetTokenStats(keyId) {
+            if (!confirm('确定要重置该 Key 的 Token 统计吗？这会清空该 Key 的今日/累计 Token 与历史 Token 统计，但保留调用次数。')) return;
+            const result = await apiRequest(`${API_BASE}/keys/${encodeURIComponent(keyId)}/reset-tokens`, { method: 'POST' });
+            if (result && result.success) { showToast('Token 统计已重置', 'success'); loadData(); }
+            else { showToast(result?.error?.message || '操作失败', 'error'); }
+        }
+
+        async function resetAllTokenStats() {
+            if (!confirm('确定要重置全部 Key 的 Token 统计吗？这会清空所有 Key 的今日/累计 Token 与历史 Token 统计，但保留调用次数。')) return;
+            const result = await apiRequest(`${API_BASE}/stats/reset-tokens`, { method: 'POST' });
+            if (result && result.success) { showToast('全部 Token 统计已重置', 'success'); loadData(); }
+            else { showToast(result?.error?.message || '操作失败', 'error'); }
+        }
+
+        function openEditLimit(keyId, currentLimit) {
+            document.getElementById('editKeyId').value = keyId;
+            document.getElementById('newLimit').value = currentLimit;
+            openModal('editLimitModal');
+        }
+
+        async function updateLimit() {
+            const keyId = document.getElementById('editKeyId').value;
+            const dailyLimit = parseInt(document.getElementById('newLimit').value);
+            if (!dailyLimit || dailyLimit < 1) { showToast('请输入有效的限额', 'error'); return; }
+            const result = await apiRequest(`${API_BASE}/keys/${encodeURIComponent(keyId)}/limit`, { method: 'PUT', body: JSON.stringify({ dailyLimit }) });
+            if (result && result.success) { showToast('限额已更新', 'success'); closeModal('editLimitModal'); loadData(); }
+            else { showToast(result?.error?.message || '操作失败', 'error'); }
+        }
+
+        function openEditName(keyId, currentName) {
+            document.getElementById('editNameKeyId').value = keyId;
+            document.getElementById('newName').value = currentName;
+            openModal('editNameModal');
+        }
+
+        async function updateName() {
+            const keyId = document.getElementById('editNameKeyId').value;
+            const name = document.getElementById('newName').value;
+            if (!name) { showToast('请输入有效的名称', 'error'); return; }
+            const result = await apiRequest(`${API_BASE}/keys/${encodeURIComponent(keyId)}/name`, { method: 'PUT', body: JSON.stringify({ name }) });
+            if (result && result.success) { showToast('名称已更新', 'success'); closeModal('editNameModal'); loadData(); }
+            else { showToast(result?.error?.message || '操作失败', 'error'); }
+        }
+
+        async function toggleKey(keyId) {
+            const result = await apiRequest(`${API_BASE}/keys/${encodeURIComponent(keyId)}/toggle`, { method: 'POST' });
+            if (result && result.success) { showToast(result.message, 'success'); loadData(); }
+            else { showToast(result?.error?.message || '操作失败', 'error'); }
+        }
+
+        async function deleteKey(keyId) {
+            if (!confirm('确定要删除该 Key 吗？此操作不可恢复。')) return;
+            const result = await apiRequest(`${API_BASE}/keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' });
+            if (result && result.success) { showToast('已删除', 'success'); loadData(); }
+            else { showToast(result?.error?.message || '删除失败', 'error'); }
+        }
+
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        function showToast(message, type = 'success') {
+            // 使用主页面的 toast 系统
+            const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            toastContainer.appendChild(toast);
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.className = 'toast-container';
+            document.body.appendChild(container);
+            return container;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        // 主题切换
+        function setupTheme() {
+            const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else {
+                document.documentElement.removeAttribute('data-theme');
+            }
+        }
+        
+        // 事件绑定
+        document.getElementById('createKeyBtn').addEventListener('click', () => openModal('createModal'));
+        document.getElementById('searchBox').addEventListener('input', applyFilterAndSort);
+        document.getElementById('sortSelect').addEventListener('change', applyFilterAndSort);
+        document.getElementById('themeToggle')?.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            if (currentTheme === 'dark') {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+
+        // 初始化
+        setupTheme();
+        if (!getToken()) { window.location.href = '/login.html'; } else { loadData(); }
+    </script>
+</body>
+</html>

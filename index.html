@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>抽卡器 · gpt-image-2</title>
+<style>
+:root {
+  --bg: #0d1117; --bg-2: #161b22; --bg-3: #1f2630;
+  --fg: #e6edf3; --fg-dim: #8b949e; --fg-muted: #6e7681;
+  --border: #30363d; --accent: #2f81f7; --accent-2: #1f6feb;
+  --green: #3fb950; --red: #f85149; --yellow: #d29922;
+  --shadow: 0 4px 16px rgba(0,0,0,0.5);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font: 14px/1.5 -apple-system,"Segoe UI",sans-serif; color: var(--fg); background: var(--bg); display: flex; }
+
+/* ===== Sidebar ===== */
+.sidebar { width: 240px; background: var(--bg-2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; }
+.sidebar-header { padding: 12px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; }
+.sidebar-header h1 { font-size: 14px; font-weight: 600; flex: 1; }
+.btn-icon { background: none; border: 1px solid var(--border); color: var(--fg); padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.btn-icon:hover { background: var(--bg-3); }
+.btn-icon.primary { background: var(--accent); border-color: var(--accent); }
+.btn-icon.primary:hover { background: var(--accent-2); }
+.conv-list { flex: 1; overflow-y: auto; padding: 8px; }
+.conv-item { padding: 8px 10px; border-radius: 6px; cursor: pointer; color: var(--fg-dim); margin-bottom: 2px; font-size: 13px; display: flex; align-items: center; gap: 4px; }
+.conv-item > span:first-child { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.conv-item:hover { background: var(--bg-3); color: var(--fg); }
+.conv-item.active { background: var(--bg-3); color: var(--fg); font-weight: 500; }
+.conv-item .del { opacity: 0; color: var(--red); margin-left: auto; flex-shrink: 0; }
+.conv-item:hover .del { opacity: 0.7; }
+.conv-item .del:hover { opacity: 1; }
+.conv-item .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; vertical-align: middle; }
+.conv-item .status-dot.running { border: 2px solid var(--accent); border-top-color: transparent; animation: spin 0.8s linear infinite; width: 10px; height: 10px; }
+.conv-item .status-dot.done { background: #3fb950; }
+
+/* ===== Main ===== */
+.main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.topbar { padding: 8px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; background: var(--bg-2); }
+.topbar .title { font-size: 14px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar .endpoint-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+.endpoint-status.ok { background: rgba(63,185,80,0.15); color: var(--green); }
+.endpoint-status.err { background: rgba(248,81,73,0.15); color: var(--red); }
+.endpoint-status.unk { background: var(--bg-3); color: var(--fg-dim); }
+
+.thread { flex: 1; overflow-y: auto; padding: 16px; }
+.empty { text-align: center; padding: 80px 20px; color: var(--fg-muted); }
+.empty h2 { font-size: 18px; margin-bottom: 8px; color: var(--fg-dim); }
+.empty p { font-size: 13px; line-height: 1.8; }
+.empty kbd { background: var(--bg-3); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 11px; }
+
+/* ===== Node ===== */
+.node { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+.node-head { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; background: var(--bg-3); font-size: 12px; color: var(--fg-dim); }
+.node-head .branch-nav { display: flex; align-items: center; gap: 4px; }
+.node-head .branch-nav button { background: none; border: none; color: var(--fg-dim); cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 14px; }
+.node-head .branch-nav button:hover:not(:disabled) { background: var(--border); color: var(--fg); }
+.node-head .branch-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+.node-head .tag { padding: 2px 8px; border-radius: 10px; background: var(--bg); font-size: 11px; }
+.node-head .tag.gen { color: var(--accent); }
+.node-head .tag.edit { color: var(--yellow); }
+.node-head .meta { flex: 1; }
+.node-head .actions button { background: none; border: 1px solid var(--border); color: var(--fg-dim); padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; margin-left: 4px; }
+.node-head .actions button:hover { background: var(--bg); color: var(--fg); }
+.node-body { padding: 14px; }
+.node-prompt { background: var(--bg); border-left: 3px solid var(--accent); padding: 8px 12px; margin-bottom: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; font-size: 13px; }
+.node-refs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.node-refs .thumb { width: 48px; height: 48px; border-radius: 4px; object-fit: cover; border: 1px solid var(--border); }
+.node-refs .ref-label { font-size: 11px; color: var(--fg-muted); margin-right: 4px; align-self: center; }
+
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.result { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; position: relative; min-height: 220px; display: flex; align-items: center; justify-content: center; }
+.result img { width: 100%; height: auto; max-height: 480px; object-fit: contain; display: block; cursor: zoom-in; }
+.result.loading { color: var(--fg-muted); font-size: 12px; }
+.result.failed { color: var(--red); font-size: 12px; padding: 12px; text-align: center; }
+.result .spinner { width: 24px; height: 24px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 8px; display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.result .overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.85), transparent 60%); opacity: 0; transition: opacity 0.15s; padding: 8px; display: flex; align-items: flex-end; gap: 4px; flex-wrap: wrap; pointer-events: none; }
+.result:hover .overlay { opacity: 1; }
+.result .overlay button { background: rgba(255,255,255,0.15); backdrop-filter: blur(8px); border: none; color: white; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; pointer-events: auto; }
+.result .overlay button:hover { background: rgba(255,255,255,0.3); }
+
+.node-revised { margin-top: 12px; padding: 8px 12px; background: var(--bg); border-radius: 4px; font-size: 11px; color: var(--fg-muted); font-style: italic; }
+.node-revised strong { color: var(--fg-dim); font-style: normal; }
+
+/* ===== Composer ===== */
+.composer { border-top: 1px solid var(--border); background: var(--bg-2); padding: 12px 16px; }
+.composer.dragging { background: rgba(47,129,247,0.1); }
+.attached { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; min-height: 0; }
+.attached:empty { display: none; }
+.attached .att { position: relative; }
+.attached .att img { width: 56px; height: 56px; border-radius: 4px; object-fit: cover; border: 1px solid var(--border); }
+.attached .att .rm { position: absolute; top: -4px; right: -4px; background: var(--red); color: white; border: none; width: 18px; height: 18px; border-radius: 50%; cursor: pointer; font-size: 11px; line-height: 1; }
+.composer textarea { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; color: var(--fg); font: inherit; font-size: 14px; resize: vertical; min-height: 140px; max-height: 50vh; outline: none; line-height: 1.6; }
+.composer textarea:focus { border-color: var(--accent); }
+.composer-actions { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.composer-actions label { font-size: 12px; color: var(--fg-dim); display: flex; align-items: center; gap: 4px; }
+.composer-actions input[type=number], .composer-actions select { background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; font-size: 12px; width: 70px; }
+.composer-actions select { width: auto; }
+.composer-actions .spacer { flex: 1; }
+.composer-actions .go { background: var(--accent); border: none; color: white; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; font-size: 13px; }
+.composer-actions .go:hover:not(:disabled) { background: var(--accent-2); }
+.composer-actions .go:disabled { opacity: 0.5; cursor: not-allowed; }
+.composer-hint { font-size: 11px; color: var(--fg-muted); margin-top: 6px; }
+
+/* ===== Editor (lightbox) ===== */
+.editor-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; flex-direction: column; z-index: 100; }
+.editor-bg.open { display: flex; }
+.editor-toolbar { display: flex; align-items: center; padding: 10px 16px; gap: 12px; flex-shrink: 0; }
+.editor-toolbar .editor-close { background: none; border: none; color: white; font-size: 24px; cursor: pointer; padding: 4px 8px; }
+.editor-toolbar .editor-title { flex: 1; color: var(--fg-dim); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.editor-toolbar .editor-actions { display: flex; gap: 6px; align-items: center; }
+.editor-toolbar .editor-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; display: flex; align-items: center; gap: 4px; }
+.editor-toolbar .editor-btn:hover { background: rgba(255,255,255,0.2); }
+.editor-toolbar .editor-btn.active { background: var(--accent); border-color: var(--accent); }
+.brush-size-slider { width: 80px; accent-color: var(--accent); }
+.editor-body { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; min-height: 0; }
+.editor-body-wrap { position: relative; display: inline-flex; max-width: 90vw; max-height: calc(100vh - 140px); }
+.editor-body-wrap img { max-width: 90vw; max-height: calc(100vh - 140px); object-fit: contain; }
+#mask-canvas { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 2; }
+#mask-canvas.active { pointer-events: auto; cursor: crosshair; }
+.editor-footer { padding: 10px 16px; flex-shrink: 0; display: flex; justify-content: center; }
+.editor-prompt-wrap { display: flex; align-items: center; gap: 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; width: 100%; max-width: 640px; }
+.editor-prompt-wrap input { flex: 1; background: none; border: none; color: var(--fg); font: inherit; font-size: 13px; outline: none; }
+.editor-prompt-wrap input::placeholder { color: var(--fg-muted); }
+.editor-prompt-wrap button { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 5px 14px; cursor: pointer; font-size: 12px; white-space: nowrap; }
+.editor-prompt-wrap button:hover { opacity: 0.85; }
+.editor-settings { display: flex; gap: 12px; justify-content: center; margin-top: 6px; font-size: 11px; color: var(--fg-muted); }
+.editor-settings label { display: flex; align-items: center; gap: 4px; }
+.editor-settings input, .editor-settings select { background: var(--bg); border: 1px solid var(--border); color: var(--fg); border-radius: 4px; padding: 2px 6px; font: inherit; font-size: 11px; width: 48px; }
+.editor-settings select { width: auto; }
+.ratio-dropdown { position: relative; }
+.ratio-menu { display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 8px; padding: 4px 0; min-width: 160px; z-index: 110; box-shadow: var(--shadow); }
+.ratio-menu.open { display: block; }
+.ratio-menu button { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--fg); padding: 8px 14px; cursor: pointer; font-size: 13px; }
+.ratio-menu button:hover { background: var(--bg-3); }
+
+/* ===== Modal (config) ===== */
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 90; }
+.modal-bg.open { display: flex; }
+.modal { background: var(--bg-2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; min-width: 420px; max-width: 90vw; box-shadow: var(--shadow); }
+.modal h2 { font-size: 16px; margin-bottom: 14px; }
+.modal label { display: block; font-size: 12px; color: var(--fg-dim); margin: 10px 0 4px; }
+.modal input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; color: var(--fg); font: inherit; }
+.modal-actions { margin-top: 16px; display: flex; gap: 8px; justify-content: flex-end; }
+.modal-actions button { background: var(--bg-3); border: 1px solid var(--border); color: var(--fg); padding: 6px 16px; border-radius: 4px; cursor: pointer; }
+.modal-actions button.primary { background: var(--accent); border-color: var(--accent); }
+
+/* ===== Account list ===== */
+.acc-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.acc-row:last-child { border-bottom: none; }
+.acc-row .acc-label-wrap { flex: 1; min-width: 0; }
+.acc-row .acc-name { font-weight: 500; font-size: 13px; }
+.acc-row .acc-meta { font-size: 11px; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-row .acc-toggle { background: none; border: 1px solid var(--border); color: var(--fg-dim); padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+.acc-row .acc-toggle.on { background: rgba(63,185,80,0.15); color: var(--green); border-color: var(--green); }
+.acc-row .acc-toggle.off { background: rgba(248,81,73,0.1); color: var(--red); border-color: var(--red); }
+.acc-row .acc-btn { background: none; border: 1px solid var(--border); color: var(--fg-dim); padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+.acc-row .acc-btn:hover { background: var(--bg-3); color: var(--fg); }
+.acc-row .acc-btn.del:hover { background: rgba(248,81,73,0.15); color: var(--red); border-color: var(--red); }
+.acc-row .acc-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--bg); color: var(--fg-dim); }
+
+/* 结果卡片显示账号标签 */
+.result .acc-tag { position: absolute; top: 4px; left: 4px; background: rgba(0,0,0,0.6); color: white; font-size: 10px; padding: 2px 6px; border-radius: 8px; z-index: 1; }
+
+/* ===== Toast ===== */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--bg-3); border: 1px solid var(--border); padding: 8px 16px; border-radius: 20px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+.toast.err { border-color: var(--red); color: var(--red); }
+.toast.ok { border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <h1>对话</h1>
+    <button class="btn-icon primary" id="btn-new">+ 新</button>
+    <button class="btn-icon" id="btn-cfg" title="配置">⚙</button>
+  </div>
+  <div class="conv-list" id="conv-list"></div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="title" id="conv-title">未选对话</div>
+    <span class="endpoint-status unk" id="endpoint-status">未测</span>
+    <button class="btn-icon" id="btn-test">测端点</button>
+  </div>
+  <div class="thread" id="thread"></div>
+  <div class="composer" id="composer">
+    <div class="attached" id="attached"></div>
+    <textarea id="prompt" placeholder="输入 prompt，回车换行；Ctrl+Enter 开始抽卡。拖图到这里 / 或点📎选图 = 改图模式（image edits）"></textarea>
+    <input type="file" id="file-picker" accept="image/*" multiple style="display:none">
+    <div class="composer-actions">
+      <button class="btn-icon" id="btn-pick" title="选择图片（拖拽不行时用）" style="padding:6px 10px">📎 选图</button>
+      <label>张数 <input type="number" id="cfg-n" min="1" max="12" value="4"></label>
+      <label>比例
+        <select id="cfg-size">
+          <option value="auto">自动</option>
+          <option value="1024x1024">方形 1:1 (1024×1024)</option>
+          <option value="768x1024">竖版 3:4 (768×1024)</option>
+          <option value="1024x1792">故事版 9:16 (1024×1792)</option>
+          <option value="1024x768">横版 4:3 (1024×768)</option>
+          <option value="1792x1024">宽屏 16:9 (1792×1024)</option>
+        </select>
+      </label>
+      <label>并发 <input type="number" id="cfg-conc" min="1" max="6" value="3"></label><span style="color:#888;font-size:11px">建议≤4</span>
+      <label title="thinking 慢但质量好 / instant 快"
+        >模式
+        <select id="cfg-effort">
+          <option value="high">🧠 thinking</option>
+          <option value="low">⚡ instant</option>
+        </select>
+      </label>
+      <span class="spacer"></span>
+      <button class="go" id="btn-go">开始抽卡</button>
+    </div>
+    <div class="composer-hint" id="hint">拖入图片 → 改图模式；不拖图片 → 文字生图</div>
+  </div>
+</div>
+
+<div class="editor-bg" id="editor">
+  <div class="editor-toolbar">
+    <button class="editor-close" id="editor-close">×</button>
+    <span class="editor-title" id="editor-title"></span>
+    <div class="editor-actions">
+      <div class="ratio-dropdown">
+        <button class="editor-btn" id="btn-ratio">🖼 宽高比 ▾</button>
+        <div class="ratio-menu" id="ratio-menu">
+          <button data-size="1024x1024">方形 1:1</button>
+          <button data-size="768x1024">竖版 3:4</button>
+          <button data-size="576x1024">故事版 9:16</button>
+          <button data-size="1024x768">横版 4:3</button>
+          <button data-size="1024x576">宽屏 16:9</button>
+        </div>
+      </div>
+      <button class="editor-btn" id="btn-select">✂ 选择</button>
+      <input type="range" id="brush-size" min="5" max="100" value="30" class="brush-size-slider" style="display:none" title="笔刷大小">
+      <button class="editor-btn" id="btn-mask-undo" style="display:none">↶</button>
+      <button class="editor-btn" id="btn-mask-clear" style="display:none">✕</button>
+      <button class="editor-btn" id="editor-dl">⬇ 下载</button>
+      <button class="editor-btn" id="editor-copy">📋 复制</button>
+    </div>
+  </div>
+  <div class="editor-body" id="editor-body">
+    <div class="editor-body-wrap" id="editor-body-wrap">
+      <img id="editor-img">
+      <canvas id="mask-canvas" width="0" height="0"></canvas>
+    </div>
+  </div>
+  <div class="editor-footer">
+    <div class="editor-prompt-wrap">
+      <input type="text" id="editor-prompt" placeholder="描述编辑...">
+      <button id="editor-submit">发送</button>
+    </div>
+    <div class="editor-settings">
+      <label>张数 <input type="number" id="editor-n" min="1" max="10" value="4"></label>
+      <label>并发 <input type="number" id="editor-conc" min="1" max="6" value="3"></label>
+      <label>模式 <select id="editor-effort"><option value="high" selected>🧠 thinking</option><option value="low">⚡ instant</option></select></label>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-cfg">
+  <div class="modal" style="min-width: 640px">
+    <h2>账号 & 策略配置</h2>
+
+    <label>分配策略</label>
+    <select id="cfg-strategy" style="width: 100%; background: var(--bg); color: var(--fg); border: 1px solid var(--border); padding: 6px 8px; border-radius: 4px;">
+      <option value="round-robin">轮询 (round-robin)</option>
+      <option value="least-busy">最闲账号优先</option>
+      <option value="random">随机</option>
+    </select>
+
+    <label style="margin-top:16px">账号列表</label>
+    <div id="account-list" style="border: 1px solid var(--border); border-radius: 6px; padding: 4px; max-height: 320px; overflow-y: auto;"></div>
+    <button id="btn-acc-add" class="btn-icon" style="margin-top: 8px;">+ 添加账号</button>
+    <button id="btn-sync-pool" class="btn-icon" style="margin-top: 8px; margin-left: 8px;">🔄 同步号池</button>
+
+    <div class="modal-actions">
+      <button id="btn-cfg-cancel">取消</button>
+      <button class="primary" id="btn-cfg-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-acc-edit">
+  <div class="modal">
+    <h2 id="acc-edit-title">编辑账号</h2>
+    <label>标签（用来识别哪个号）</label>
+    <input id="acc-label" placeholder="主号 / 工作号 / 学习号">
+    <input id="acc-base" type="hidden">
+    <input id="acc-key" type="hidden">
+    <input id="acc-model" type="hidden" value="gpt-image-2">
+    <label><input type="checkbox" id="acc-enabled" checked style="width:auto; margin-right: 6px"> 启用</label>
+    <div class="modal-actions">
+      <button id="btn-acc-cancel">取消</button>
+      <button class="primary" id="btn-acc-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="modal-oauth">
+  <div class="modal" style="min-width: 480px">
+    <h2>OAuth 一键添加 ChatGPT 号</h2>
+    <p style="color: var(--fg-dim); font-size: 13px; margin-bottom: 12px">
+      点「开始」→ 浏览器自动打开 OpenAI 登录页 → 你用要加的 ChatGPT 账号登录 → 完成后新号自动入号池，抽卡器自动加到账号列表。
+    </p>
+    <input id="oauth-mgmt-url" type="hidden" value="">
+    <label>新账号标签（用来识别哪个 ChatGPT 号）</label>
+    <input id="oauth-new-label" placeholder="副号 / 学习号">
+    <div id="oauth-status" style="margin-top: 12px; padding: 8px 12px; border-radius: 4px; background: var(--bg); color: var(--fg-dim); font-size: 12px; display: none;"></div>
+    <div class="modal-actions">
+      <button id="btn-oauth-manual" style="font-size:11px">退回手动模式</button>
+      <span style="flex:1"></span>
+      <button id="btn-oauth-cancel">取消</button>
+      <button class="primary" id="btn-oauth-start">开始 OAuth</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+
+// ===== IndexedDB wrapper (for images) =====
+const idb = {
+  db: null,
+  open() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('image-roller', 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('images')) db.createObjectStore('images', { keyPath: 'id' });
+      };
+      req.onsuccess = e => { this.db = e.target.result; res(); };
+      req.onerror = e => rej(e.target.error);
+    });
+  },
+  put(id, b64) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction('images', 'readwrite');
+      tx.objectStore('images').put({ id, b64, ts: Date.now() });
+      tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+    });
+  },
+  get(id) {
+    return new Promise((res, rej) => {
+      const tx = this.db.transaction('images', 'readonly');
+      const req = tx.objectStore('images').get(id);
+      req.onsuccess = e => res(e.target.result ? e.target.result.b64 : null);
+      req.onerror = e => rej(e.target.error);
+    });
+  },
+  del(id) {
+    return new Promise((res) => {
+      const tx = this.db.transaction('images', 'readwrite');
+      tx.objectStore('images').delete(id);
+      tx.oncomplete = res;
+    });
+  }
+};
+
+// ===== State =====
+const DEFAULT_ACCOUNT = {
+  label: '主号',
+  baseUrl: '/openai-codex-oauth',
+  apiKey: '',
+  model: 'gpt-image-2',
+  enabled: true,
+};
+const DEFAULT_GLOBAL = {
+  defaultN: 4, defaultSize: '768x1024', defaultConcurrency: 3, defaultEffort: 'high',
+  strategy: 'round-robin', // 或 'random' / 'least-busy'
+};
+const STORAGE_KEY = 'image-roller-v1';
+let state = {
+  conversations: {}, nodes: {},
+  currentConvId: null, currentNodeId: null,
+  accounts: [{ id: 'a1', ...DEFAULT_ACCOUNT }],
+  global: { ...DEFAULT_GLOBAL },
+  rrIdx: 0, // round-robin 指针
+};
+
+async function loadState() {
+  try {
+    let raw = localStorage.getItem(STORAGE_KEY);
+    // 如果 localStorage 空（换了端口/清了缓存），从磁盘恢复
+    if (!raw) {
+      try {
+        const r = await fetch('/api/load-state');
+        if (r.ok) { raw = await r.text(); console.log('[load] 从磁盘恢复 state'); }
+      } catch (e) { console.warn('[load] 磁盘恢复失败:', e.message); }
+    }
+    if (raw) {
+      const s = JSON.parse(raw);
+      state = { ...state, ...s };
+      state.global = { ...DEFAULT_GLOBAL, ...(s.global || {}) };
+      // 迁移老格式 config -> accounts[0]
+      if (!s.accounts && s.config) {
+        state.accounts = [{
+          id: 'a1', label: '主号',
+          baseUrl: s.config.baseUrl || DEFAULT_ACCOUNT.baseUrl,
+          apiKey: s.config.apiKey || DEFAULT_ACCOUNT.apiKey,
+          model: s.config.model || DEFAULT_ACCOUNT.model,
+          enabled: true,
+        }];
+      }
+      if (!state.accounts || !state.accounts.length) state.accounts = [{ id: 'a1', ...DEFAULT_ACCOUNT }];
+      // 每个账号补 inFlight 字段（运行时用）
+      state.accounts.forEach(a => { a._inFlight = 0; });
+
+      // URL 自动迁移：旧的绝对路径 → 新的相对路径（合并端口后不再需要 host:port）
+      let migrated = false;
+      state.accounts.forEach(a => {
+        if (!a.baseUrl) return;
+        if (a.baseUrl.startsWith('http://')) {
+          const before = a.baseUrl;
+          a.baseUrl = a.baseUrl.replace(/^https?:\/\/[^/]+/, '');
+          if (!a.baseUrl) a.baseUrl = '/openai-codex-oauth';
+          a.apiKey = '';
+          console.log(`[migrate] ${a.label}: ${before} → ${a.baseUrl}`);
+          migrated = true;
+        }
+      });
+      // 不合并 — 用户想看到每个号
+      if (migrated) saveState();
+    }
+  } catch (e) { console.warn('Load state failed:', e); }
+}
+
+// 获取一个 enabled 账号（基于当前策略）
+function pickAccount() {
+  const enabled = state.accounts.filter(a => a.enabled);
+  if (!enabled.length) throw new Error('没有启用的账号 — 请在配置里添加并启用至少一个');
+  if (state.global.strategy === 'random') {
+    return enabled[Math.floor(Math.random() * enabled.length)];
+  }
+  if (state.global.strategy === 'least-busy') {
+    return enabled.reduce((a, b) => ((a._inFlight || 0) <= (b._inFlight || 0) ? a : b));
+  }
+  // round-robin (默认)
+  const acc = enabled[state.rrIdx % enabled.length];
+  state.rrIdx = (state.rrIdx + 1) % Math.max(1, enabled.length * 1000);
+  return acc;
+}
+function saveState() {
+  const json = JSON.stringify(state);
+  localStorage.setItem(STORAGE_KEY, json);
+  // 双写到磁盘（通过 serve.js API），换端口/清缓存也不丢
+  fetch('/api/save-state', { method: 'POST', headers: {'Content-Type':'application/json'}, body: json }).catch(() => {});
+}
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+// ===== Conversation / Node ops =====
+function newConv() {
+  const cid = uid();
+  state.conversations[cid] = { id: cid, title: '新对话 ' + new Date().toLocaleTimeString().slice(0,5), rootNodeId: null, createdAt: Date.now() };
+  state.currentConvId = cid;
+  state.currentNodeId = null;
+  saveState(); renderAll();
+  return cid;
+}
+function delConv(cid) {
+  if (!confirm('删除整个对话和所有图片？')) return;
+  // 删 IDB 图片
+  Object.values(state.nodes).filter(n => n.conversationId === cid).forEach(n => {
+    (n.results || []).forEach(r => { if (r.b64DbId) idb.del(r.b64DbId); });
+    (n.attachedImageIds || []).forEach(i => idb.del(i));
+    delete state.nodes[n.id];
+  });
+  delete state.conversations[cid];
+  if (state.currentConvId === cid) {
+    const remaining = Object.keys(state.conversations);
+    state.currentConvId = remaining[0] || null;
+    state.currentNodeId = null;
+    if (!state.currentConvId) newConv();
+  }
+  saveState(); renderAll();
+}
+
+// 当前显示的线性路径：从 root 沿 currentNodeId 回溯
+function getLinearPath() {
+  if (!state.currentConvId) return [];
+  if (!state.currentNodeId) {
+    // 没选中节点：找该会话最新的叶子
+    const nodesOfConv = Object.values(state.nodes).filter(n => n.conversationId === state.currentConvId);
+    if (!nodesOfConv.length) return [];
+    // 找一条从 root 到最新创建的节点的路径
+    nodesOfConv.sort((a,b) => b.createdAt - a.createdAt);
+    state.currentNodeId = nodesOfConv[0].id;
+  }
+  // 从当前节点回溯到 root
+  const path = [];
+  let cur = state.nodes[state.currentNodeId];
+  while (cur) {
+    path.unshift(cur);
+    cur = cur.parentId ? state.nodes[cur.parentId] : null;
+  }
+  return path;
+}
+
+function getSiblings(node) {
+  return Object.values(state.nodes).filter(n => n.conversationId === node.conversationId && n.parentId === node.parentId)
+    .sort((a,b) => a.createdAt - b.createdAt);
+}
+
+// ===== API =====
+async function callGenerate(acc, prompt, size, signal, effort) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (acc.apiKey) headers['Authorization'] = `Bearer ${acc.apiKey}`;
+  const body = { model: acc.model, prompt, n: 1, size };
+  if (effort) body.reasoning = { effort };
+  const r = await fetch(`${acc.baseUrl}/v1/images/generations`, {
+    method: 'POST', headers,
+    body: JSON.stringify(body),
+    signal
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0,200)}`);
+  }
+  return (await r.json()).data[0];
+}
+
+async function callEdit(acc, prompt, imageBlob, size, signal, effort, maskBlob) {
+  const form = new FormData();
+  form.append('model', acc.model);
+  form.append('prompt', prompt);
+  form.append('n', '1');
+  form.append('size', size);
+  form.append('image', imageBlob, 'input.png');
+  if (maskBlob) form.append('mask', maskBlob, 'mask.png');
+  if (effort) form.append('reasoning', JSON.stringify({ effort }));
+  const headers = {};
+  if (acc.apiKey) headers['Authorization'] = `Bearer ${acc.apiKey}`;
+  const r = await fetch(`${acc.baseUrl}/v1/images/edits`, {
+    method: 'POST', headers, body: form, signal
+  });
+  if (!r.ok) {
+    const txt = await r.text();
+    throw new Error(`HTTP ${r.status}: ${txt.slice(0,200)}`);
+  }
+  return (await r.json()).data[0];
+}
+
+// 并发池
+async function concurrentMap(items, limit, worker) {
+  const results = new Array(items.length);
+  let idx = 0;
+  async function run() {
+    while (idx < items.length) {
+      const i = idx++;
+      try { results[i] = { ok: true, data: await worker(items[i], i) }; }
+      catch (e) { results[i] = { ok: false, error: e.message || String(e) }; }
+    }
+  }
+  await Promise.all(Array(Math.min(limit, items.length)).fill(0).map(run));
+  return results;
+}
+
+// ===== 抽卡核心 =====
+let runningController = null;
+async function rollCards() {
+  if (runningController) { toast('已有任务进行中', 'err'); return; }
+  runningController = new AbortController();
+  if (!state.currentConvId) newConv();
+  const prompt = document.getElementById('prompt').value.trim();
+  if (!prompt) { toast('请输入 prompt', 'err'); runningController = null; return; }
+  const n = +document.getElementById('cfg-n').value || 4;
+  const size = document.getElementById('cfg-size').value;
+  const conc = +document.getElementById('cfg-conc').value || 3;
+  const effort = document.getElementById('cfg-effort').value || 'high';
+
+  // 决定 parent: 当前显示的最后一个节点（不一定有）
+  const path = getLinearPath();
+  const parentNode = path[path.length - 1] || null;
+
+  // 创建节点
+  const nodeId = uid();
+  const attachedIds = pendingAttached.slice();
+  const node = {
+    id: nodeId, conversationId: state.currentConvId,
+    parentId: parentNode ? parentNode.id : null,
+    type: attachedIds.length ? 'edit' : 'generation',
+    prompt, attachedImageIds: attachedIds,
+    params: { n, size, concurrency: conc, effort },
+    results: Array(n).fill(null).map(() => ({ id: uid(), status: 'loading' })),
+    status: 'running', createdAt: Date.now()
+  };
+  state.nodes[nodeId] = node;
+  state.currentNodeId = nodeId;
+  if (!state.conversations[state.currentConvId].rootNodeId) state.conversations[state.currentConvId].rootNodeId = nodeId;
+  // 会话标题用第一条 prompt
+  if (!path.length) state.conversations[state.currentConvId].title = prompt.slice(0, 30);
+  pendingAttached = [];
+  saveState(); renderAll();
+
+  // 先取出 edit 用的参考图 blob（用第一张），自动识别原始 mime
+  let imageBlob = null;
+  if (attachedIds.length) {
+    const v = await idb.get(attachedIds[0]);
+    if (v) imageBlob = asBlob(v);
+  }
+  let maskBlob = editorState.pendingMaskBlob || null;
+  editorState.pendingMaskBlob = null;
+  const signal = runningController.signal;
+
+  await Promise.all(node.results.map((slot, i) => limitedRoll(node, slot, i, prompt, size, imageBlob, signal, effort, maskBlob)
+    .then(r => {
+      Object.assign(slot, r);
+      saveState(); renderConversation();
+    })));
+
+  node.status = 'done';
+  node.completedAt = Date.now();
+  state.endpointHealthy = true;
+  saveState(); renderAll();
+  runningController = null;
+  toast('完成', 'ok');
+  updateEndpointStatus('ok');
+}
+
+// 单张并发执行：全局并发上限 + 每账号自身计数 + 抖动反检测
+const concQueue = { active: 0, q: [] };
+const JITTER_MIN_MS = 1000, JITTER_MAX_MS = 5000;
+async function limitedRoll(node, slot, i, prompt, size, imageBlob, signal, effort, maskBlob) {
+  while (concQueue.active >= (node.params.concurrency || 3)) {
+    await new Promise(r => concQueue.q.push(r));
+  }
+  concQueue.active++;
+  let acc = null;
+  try {
+    acc = pickAccount();
+    acc._inFlight = (acc._inFlight || 0) + 1;
+    // 反检测抖动
+    const jitter = Math.floor(JITTER_MIN_MS + Math.random() * (JITTER_MAX_MS - JITTER_MIN_MS));
+    console.log(`[roll #${i}] account=${acc.label} jitter=${jitter}ms`);
+    await new Promise(r => setTimeout(r, jitter));
+    if (signal.aborted) return { id: slot.id, status: 'cancelled', accountId: acc.id, accountLabel: acc.label };
+    const data = imageBlob
+      ? await callEdit(acc, prompt, imageBlob, size, signal, effort, maskBlob)
+      : await callGenerate(acc, prompt, size, signal, effort);
+    const imgId = uid();
+    const dataUrl = `data:image/png;base64,${data.b64_json}`;
+    await idb.put(imgId, dataUrl);
+    // 自动保存到本地磁盘（按会话名分文件夹）
+    const convTitle = state.conversations[node.conversationId]?.title || '未命名';
+    saveImageToDisk(dataUrl, `${imgId}.png`, convTitle).catch(e => console.warn('[save-disk]', e));
+    return { id: slot.id, status: 'ok', b64DbId: imgId, revised_prompt: data.revised_prompt, accountId: acc.id, accountLabel: acc.label };
+  } catch (e) {
+    if (e.name === 'AbortError') return { id: slot.id, status: 'cancelled', accountId: acc?.id, accountLabel: acc?.label };
+    return { id: slot.id, status: 'failed', error: e.message || String(e), accountId: acc?.id, accountLabel: acc?.label };
+  } finally {
+    if (acc) acc._inFlight = Math.max(0, (acc._inFlight || 1) - 1);
+    concQueue.active--;
+    if (concQueue.q.length) concQueue.q.shift()();
+  }
+}
+
+// 旧函数保留兼容（API 返回的纯 b64 用得到）
+function b64ToBlob(b64, mime='image/png') {
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+// ===== 拖拽 =====
+let pendingAttached = []; // image IDs in IDB
+
+const composer = document.getElementById('composer');
+const promptEl = document.getElementById('prompt');
+
+// 全局阻止浏览器默认打开拖入的文件
+document.addEventListener('dragover', e => { e.preventDefault(); });
+document.addEventListener('drop', e => { e.preventDefault(); });
+
+// composer 区域 visual feedback
+let dragDepth = 0;
+document.addEventListener('dragenter', e => { dragDepth++; if (e.dataTransfer?.types?.includes('Files')) composer.classList.add('dragging'); });
+document.addEventListener('dragleave', e => { dragDepth--; if (dragDepth <= 0) { composer.classList.remove('dragging'); dragDepth = 0; } });
+
+// drop handler — 只在 document 级绑定一次，避免冒泡重复触发
+// 之前 composer + promptEl + document 三处都绑定导致一张图变 2-3 张
+async function handleFilesDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  composer.classList.remove('dragging'); dragDepth = 0;
+  const dt = e.dataTransfer;
+  console.log('[drop]', { target: e.target.tagName, fileCount: dt?.files?.length });
+  const files = [...(dt?.files || [])].filter(f => f.type.startsWith('image/'));
+  if (!files.length) {
+    if (dt?.files?.length) toast('文件不是图片类型', 'err');
+    else toast('未识别到图片，试试📎选图按钮', 'err');
+    return;
+  }
+  for (const f of files) {
+    const dataUrl = await fileToB64(f);  // 现在返回完整 data URL（含 mime）
+    const id = uid();
+    await idb.put(id, dataUrl);
+    pendingAttached.push(id);
+  }
+  await renderAttached();
+  toast(`已附 ${files.length} 张图`, 'ok');
+}
+document.addEventListener('drop', handleFilesDrop);
+
+// paste handler — 支持 Ctrl+V 粘贴图片
+document.addEventListener('paste', async (e) => {
+  const items = [...(e.clipboardData?.items || [])].filter(i => i.type.startsWith('image/'));
+  if (!items.length) return;
+  e.preventDefault();
+  for (const item of items) {
+    const file = item.getAsFile();
+    if (!file) continue;
+    const dataUrl = await fileToB64(file);
+    const id = uid();
+    await idb.put(id, dataUrl);
+    pendingAttached.push(id);
+  }
+  await renderAttached();
+  toast(`已粘贴 ${items.length} 张图`, 'ok');
+});
+
+// 文件选择按钮（拖拽不行时的兜底）
+const filePicker = document.getElementById('file-picker');
+document.getElementById('btn-pick').onclick = () => filePicker.click();
+filePicker.onchange = async (e) => {
+  const files = [...(e.target.files || [])].filter(f => f.type.startsWith('image/'));
+  console.log('[pick]', files.length, 'files');
+  for (const f of files) {
+    const b64 = await fileToB64(f);
+    const id = uid();
+    await idb.put(id, b64);
+    pendingAttached.push(id);
+  }
+  await renderAttached();
+  e.target.value = ''; // 允许重新选同一个文件
+  if (files.length) toast(`已添加 ${files.length} 张图`, 'ok');
+};
+
+async function fileToB64(file) {
+  // gpt-image-2 image_edits 只接受 PNG/JPG/WEBP。SVG/AVIF 等用 canvas 转 PNG
+  const isSvg = file.type === 'image/svg+xml' || /\.svg$/i.test(file.name);
+  if (isSvg) {
+    try { return await svgToPng(file, 1024); }
+    catch (e) { console.warn('[svg→png] failed, falling back to raw:', e); }
+  }
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+// SVG → PNG 转换（rasterize 矢量图，让 API 能接受 + 解决 mime/解码问题）
+async function svgToPng(file, longSide = 1024) {
+  const svgText = await file.text();
+  const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => rej(new Error('SVG decode failed'));
+      im.src = url;
+    });
+    // 读 SVG 自带尺寸，若无则尝试解析 viewBox
+    let w = img.naturalWidth, h = img.naturalHeight;
+    if (!w || !h) {
+      const vb = svgText.match(/viewBox\s*=\s*["']([\d.\s,-]+)["']/i);
+      if (vb) {
+        const p = vb[1].trim().split(/[\s,]+/).map(Number);
+        if (p.length === 4) { w = p[2]; h = p[3]; }
+      }
+    }
+    if (!w || !h) { w = longSide; h = longSide; }
+    // 缩到长边 = longSide，保持比例
+    const scale = longSide / Math.max(w, h);
+    const cw = Math.max(1, Math.round(w * scale));
+    const ch = Math.max(1, Math.round(h * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = cw; canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    // 白底（避免透明 PNG 在 gpt-image-2 上产生奇怪结果）
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.drawImage(img, 0, 0, cw, ch);
+    return canvas.toDataURL('image/png');
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// helper: IDB 里存的可能是新格式 (data:...) 或旧格式 (纯 b64) — 都转成可用的 img src
+function asSrc(v) {
+  if (!v) return null;
+  return v.startsWith('data:') ? v : `data:image/png;base64,${v}`;
+}
+// helper: data URL or 纯 b64 → Blob（保留正确 mime，用于 API multipart 上传）
+function asBlob(v) {
+  if (!v) return null;
+  let mime = 'image/png', b64 = v;
+  if (v.startsWith('data:')) {
+    const m = v.match(/^data:([^;]+);base64,(.+)$/);
+    if (m) { mime = m[1]; b64 = m[2]; }
+  }
+  const bytes = atob(b64);
+  const arr = new Uint8Array(bytes.length);
+  for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+async function renderAttached() {
+  const wrap = document.getElementById('attached');
+  wrap.innerHTML = '';
+  for (const id of pendingAttached) {
+    const v = await idb.get(id);
+    if (!v) continue;
+    const div = document.createElement('div');
+    div.className = 'att';
+    div.innerHTML = `<img src="${asSrc(v)}"><button class="rm">×</button>`;
+    div.querySelector('.rm').onclick = () => {
+      pendingAttached = pendingAttached.filter(x => x !== id);
+      idb.del(id);
+      renderAttached();
+    };
+    wrap.appendChild(div);
+  }
+  document.getElementById('hint').textContent = pendingAttached.length
+    ? `已附 ${pendingAttached.length} 张参考图 → 改图模式（用第一张作为输入；多张目前服务端只用第一张）`
+    : '拖入图片 → 改图模式；不拖图片 → 文字生图';
+}
+
+// ===== Rendering =====
+function renderAll() {
+  renderSidebar(); renderConversation();
+}
+
+function renderSidebar() {
+  const wrap = document.getElementById('conv-list');
+  wrap.innerHTML = '';
+  const convs = Object.values(state.conversations).sort((a,b) => b.createdAt - a.createdAt);
+  for (const c of convs) {
+    const div = document.createElement('div');
+    div.className = 'conv-item' + (c.id === state.currentConvId ? ' active' : '');
+    const nodes = Object.values(state.nodes).filter(n => n.conversationId === c.id);
+    const hasRunning = nodes.some(n => n.status === 'running');
+    const hasDone = !hasRunning && nodes.some(n => n.status === 'done' || n.results?.some(r => r.status === 'ok'));
+    const dot = hasRunning ? '<span class="status-dot running"></span>' : hasDone ? '<span class="status-dot done"></span>' : '';
+    div.innerHTML = `<span>${escape(c.title || '未命名')}</span>${dot}<span class="del" title="删除">×</span>`;
+    div.onclick = (e) => {
+      if (e.target.classList.contains('del')) { delConv(c.id); return; }
+      state.currentConvId = c.id; state.currentNodeId = null;
+      saveState(); renderAll();
+    };
+    wrap.appendChild(div);
+  }
+}
+
+async function renderConversation() {
+  const thread = document.getElementById('thread');
+  const titleEl = document.getElementById('conv-title');
+  if (!state.currentConvId) {
+    titleEl.textContent = '未选对话';
+    thread.innerHTML = `<div class="empty"><h2>欢迎</h2><p>点左上「+ 新」开始第一个对话，<br>输入 prompt → 抽卡。<br><br>拖图到下方 = 改图模式 <kbd>image edits</kbd><br>无图 = 文字生图 <kbd>generations</kbd></p></div>`;
+    return;
+  }
+  titleEl.textContent = state.conversations[state.currentConvId].title || '未命名';
+
+  const path = getLinearPath();
+  if (!path.length) {
+    thread.innerHTML = `<div class="empty"><h2>空对话</h2><p>下方输入 prompt 开始抽卡</p></div>`;
+    return;
+  }
+
+  thread.innerHTML = '';
+  for (const node of path) {
+    thread.appendChild(await renderNode(node));
+  }
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function renderNode(node) {
+  const div = document.createElement('div');
+  div.className = 'node';
+
+  const siblings = getSiblings(node);
+  const sibIdx = siblings.findIndex(s => s.id === node.id);
+  const dt = new Date(node.createdAt);
+
+  // head
+  const head = document.createElement('div');
+  head.className = 'node-head';
+  head.innerHTML = `
+    <div class="branch-nav">
+      <button ${sibIdx <= 0 ? 'disabled' : ''} title="上一个兄弟">‹</button>
+      <span>${sibIdx + 1} / ${siblings.length}</span>
+      <button ${sibIdx >= siblings.length - 1 ? 'disabled' : ''} title="下一个兄弟">›</button>
+    </div>
+    <span class="tag ${node.type === 'edit' ? 'edit' : 'gen'}">${node.type === 'edit' ? '改图' : '生图'}</span>
+    <span class="meta">${dt.toLocaleString()} · ${node.params.size} · ${node.results.length}张 ${node.status === 'running' ? '⏳' : ''}</span>
+    <div class="actions">
+      <button title="同 prompt 再抽一次（新兄弟）">🔁 重抽</button>
+      <button title="改 prompt 再来一次（新兄弟）">✎ 编辑</button>
+      <button title="从此节点建立新聊天分支">⑃ 分支</button>
+    </div>
+  `;
+  const [prev, next] = head.querySelectorAll('.branch-nav button');
+  prev.onclick = () => { if (sibIdx > 0) { switchToNode(siblings[sibIdx - 1].id); } };
+  next.onclick = () => { if (sibIdx < siblings.length - 1) { switchToNode(siblings[sibIdx + 1].id); } };
+  const [rerollBtn, editBtn, forkBtn] = head.querySelectorAll('.actions button');
+  rerollBtn.onclick = () => reRoll(node);
+  editBtn.onclick = () => editAndRoll(node);
+  forkBtn.onclick = () => forkSession(node);
+  div.appendChild(head);
+
+  // body
+  const body = document.createElement('div');
+  body.className = 'node-body';
+  body.innerHTML = `<div class="node-prompt">${escape(node.prompt)}</div>`;
+
+  // refs
+  if ((node.attachedImageIds || []).length) {
+    const refs = document.createElement('div');
+    refs.className = 'node-refs';
+    refs.innerHTML = '<span class="ref-label">参考图:</span>';
+    for (const aid of node.attachedImageIds) {
+      const v = await idb.get(aid);
+      if (v) {
+        const src = asSrc(v);
+        const img = new Image(); img.src = src; img.className = 'thumb';
+        img.onclick = () => openEditor(src, null, null);
+        refs.appendChild(img);
+      }
+    }
+    body.appendChild(refs);
+  }
+
+  // results grid
+  const grid = document.createElement('div');
+  grid.className = 'results-grid';
+  for (const r of node.results) {
+    const cell = document.createElement('div');
+    cell.className = 'result';
+    if (r.status === 'loading') {
+      cell.classList.add('loading');
+      cell.innerHTML = '<div><div class="spinner"></div>生成中...</div>';
+    } else if (r.status === 'failed') {
+      cell.classList.add('failed');
+      const tag = r.accountLabel ? `<span class="acc-tag">${escape(r.accountLabel)}</span>` : '';
+      cell.innerHTML = `${tag}<div>❌<br>${escape((r.error || '').slice(0,100))}</div>`;
+    } else if (r.status === 'cancelled') {
+      cell.classList.add('failed');
+      cell.innerHTML = '<div>已取消</div>';
+    } else if (r.status === 'ok' && r.b64DbId) {
+      const v = await idb.get(r.b64DbId);
+      if (v) {
+        const url = asSrc(v);
+        cell.innerHTML = `
+          <img src="${url}">
+          <div class="overlay">
+            <button data-act="copy">📋 复制</button>
+            <button data-act="dl">⬇ 下载</button>
+            <button data-act="edit">✎ 基于此图改</button>
+          </div>
+        `;
+        cell.querySelector('img').onclick = () => openEditor(url, node, r.b64DbId);
+        cell.querySelector('[data-act=dl]').onclick = () => downloadImage(url, `roll-${r.id}.png`);
+        cell.querySelector('[data-act=copy]').onclick = () => copyImageToClipboard(url);
+        cell.querySelector('[data-act=edit]').onclick = () => useAsRef(r.b64DbId);
+      }
+    }
+    grid.appendChild(cell);
+  }
+  body.appendChild(grid);
+
+  // revised prompt
+  const revised = node.results.find(r => r.revised_prompt)?.revised_prompt;
+  if (revised) {
+    const div2 = document.createElement('div');
+    div2.className = 'node-revised';
+    div2.innerHTML = `<strong>revised:</strong> ${escape(revised)}`;
+    body.appendChild(div2);
+  }
+
+  div.appendChild(body);
+  return div;
+}
+
+function switchToNode(nid) {
+  state.currentNodeId = nid;
+  saveState(); renderConversation();
+}
+
+function reRoll(node) {
+  // 创建同 parent 同 prompt 的新兄弟
+  document.getElementById('prompt').value = node.prompt;
+  document.getElementById('cfg-n').value = node.params.n || 4;
+  document.getElementById('cfg-size').value = node.params.size || '1024x1024';
+  // 把附图复制到 pending
+  (async () => {
+    pendingAttached = [];
+    for (const aid of (node.attachedImageIds || [])) {
+      const b64 = await idb.get(aid);
+      if (b64) { const newId = uid(); await idb.put(newId, b64); pendingAttached.push(newId); }
+    }
+    await renderAttached();
+    // 让 currentNodeId 指向 parent，这样新 roll 会成为 parent 的新 sibling
+    state.currentNodeId = node.parentId;
+    saveState();
+    rollCards();
+  })();
+}
+
+function editAndRoll(node) {
+  document.getElementById('prompt').value = node.prompt;
+  document.getElementById('cfg-n').value = node.params.n || 4;
+  document.getElementById('cfg-size').value = node.params.size || '1024x1024';
+  (async () => {
+    pendingAttached = [];
+    for (const aid of (node.attachedImageIds || [])) {
+      const b64 = await idb.get(aid);
+      if (b64) { const newId = uid(); await idb.put(newId, b64); pendingAttached.push(newId); }
+    }
+    await renderAttached();
+    state.currentNodeId = node.parentId;
+    saveState();
+    document.getElementById('prompt').focus();
+    toast('改 prompt 后点「开始抽卡」', 'ok');
+  })();
+}
+
+async function useAsRef(b64DbId) {
+  const b64 = await idb.get(b64DbId);
+  if (!b64) return;
+  const newId = uid();
+  await idb.put(newId, b64);
+  pendingAttached.push(newId);
+  renderAttached();
+  document.getElementById('prompt').focus();
+  toast('已添加为参考图，输入修改 prompt 后抽卡', 'ok');
+}
+
+// ===== Helpers =====
+async function saveImageToDisk(dataUrl, filename, subfolder) {
+  try {
+    const r = await fetch('/api/save-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dataUrl, filename, subfolder }),
+    });
+    const j = await r.json();
+    if (j.ok) console.log(`[save-disk] ${j.path} (${(j.size/1024).toFixed(1)} KB)`);
+    else console.warn('[save-disk] failed:', j.error);
+  } catch (e) { console.warn('[save-disk] error:', e); }
+}
+function escape(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function copyImageToClipboard(src) {
+  try {
+    const url = src.startsWith('data:') ? src : `data:image/png;base64,${src}`;
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': new Blob([blob], { type: 'image/png' }) })]);
+    toast('已复制到剪贴板', 'ok');
+  } catch (e) { toast('复制失败: ' + e.message, 'err'); }
+}
+async function forkSession(node) {
+  const path = [];
+  let cur = node;
+  while (cur) { path.unshift(cur); cur = cur.parentId ? state.nodes[cur.parentId] : null; }
+  const srcTitle = state.conversations[node.conversationId]?.title || '';
+  const newCid = uid();
+  state.conversations[newCid] = { id: newCid, title: '分支 · ' + srcTitle.slice(0, 20), rootNodeId: null, createdAt: Date.now() };
+  const idMap = {};
+  for (const n of path) {
+    const newNodeId = uid();
+    idMap[n.id] = newNodeId;
+    const newResults = [];
+    for (const r of (n.results || [])) {
+      const nr = { ...r, id: uid() };
+      if (r.b64DbId) { const d = await idb.get(r.b64DbId); if (d) { nr.b64DbId = uid(); await idb.put(nr.b64DbId, d); } }
+      newResults.push(nr);
+    }
+    const newAttached = [];
+    for (const aid of (n.attachedImageIds || [])) {
+      const d = await idb.get(aid); if (d) { const nid = uid(); await idb.put(nid, d); newAttached.push(nid); }
+    }
+    state.nodes[newNodeId] = { ...n, id: newNodeId, conversationId: newCid, parentId: n.parentId ? idMap[n.parentId] : null, results: newResults, attachedImageIds: newAttached };
+    if (!n.parentId) state.conversations[newCid].rootNodeId = newNodeId;
+  }
+  state.currentConvId = newCid;
+  state.currentNodeId = idMap[node.id];
+  saveState(); renderAll();
+  toast('已建立聊天分支', 'ok');
+}
+function downloadImage(src, name) {
+  // src 可以是 data URL（含 mime） 或 纯 b64 字符串
+  const url = src.startsWith('data:') ? src : `data:image/png;base64,${src}`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+let editorState = { src: null, b64DbId: null, node: null, pendingMaskBlob: null };
+let maskActive = false, maskHistory = [], maskDrawing = false, lastMaskPoint = null;
+
+function syncMaskCanvas() {
+  const img = document.getElementById('editor-img');
+  const canvas = document.getElementById('mask-canvas');
+  if (!img.naturalWidth) return;
+  canvas.style.width = img.clientWidth + 'px';
+  canvas.style.height = img.clientHeight + 'px';
+  if (canvas.width !== img.naturalWidth || canvas.height !== img.naturalHeight) {
+    let old = null;
+    if (canvas.width > 0 && canvas.height > 0) {
+      try { old = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
+    }
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    if (old && old.width && old.height) canvas.getContext('2d').putImageData(old, 0, 0);
+  }
+}
+function toggleMaskMode() {
+  maskActive = !maskActive;
+  const canvas = document.getElementById('mask-canvas');
+  const btn = document.getElementById('btn-select');
+  if (maskActive) {
+    canvas.classList.add('active'); btn.classList.add('active');
+    ['brush-size','btn-mask-undo','btn-mask-clear'].forEach(id => document.getElementById(id).style.display = '');
+    syncMaskCanvas();
+  } else {
+    canvas.classList.remove('active'); btn.classList.remove('active');
+    ['brush-size','btn-mask-undo','btn-mask-clear'].forEach(id => document.getElementById(id).style.display = 'none');
+  }
+}
+function resetMaskState() {
+  maskActive = false; maskHistory = []; maskDrawing = false; lastMaskPoint = null;
+  const canvas = document.getElementById('mask-canvas');
+  canvas.classList.remove('active');
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById('btn-select').classList.remove('active');
+  ['brush-size','btn-mask-undo','btn-mask-clear'].forEach(id => document.getElementById(id).style.display = 'none');
+}
+function canvasCoord(e) {
+  const c = document.getElementById('mask-canvas'), r = c.getBoundingClientRect();
+  return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height };
+}
+function brushRadius() {
+  const c = document.getElementById('mask-canvas'), r = c.getBoundingClientRect();
+  return (+document.getElementById('brush-size').value) * c.width / r.width;
+}
+function drawDot(pos) {
+  const ctx = document.getElementById('mask-canvas').getContext('2d');
+  ctx.fillStyle = 'rgba(80,160,255,0.2)';
+  ctx.beginPath(); ctx.arc(pos.x, pos.y, brushRadius(), 0, Math.PI * 2); ctx.fill();
+}
+function drawLine(from, to) {
+  const ctx = document.getElementById('mask-canvas').getContext('2d');
+  ctx.strokeStyle = 'rgba(80,160,255,0.2)'; ctx.lineWidth = brushRadius() * 2;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+}
+
+const maskCanvas = document.getElementById('mask-canvas');
+maskCanvas.addEventListener('pointerdown', (e) => {
+  if (!maskActive) return;
+  maskDrawing = true; maskCanvas.setPointerCapture(e.pointerId);
+  const ctx = maskCanvas.getContext('2d');
+  maskHistory.push(ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
+  if (maskHistory.length > 20) maskHistory.shift();
+  lastMaskPoint = canvasCoord(e); drawDot(lastMaskPoint);
+});
+maskCanvas.addEventListener('pointermove', (e) => {
+  if (!maskActive || !maskDrawing) return;
+  const pos = canvasCoord(e); drawLine(lastMaskPoint, pos); lastMaskPoint = pos;
+});
+maskCanvas.addEventListener('pointerup', () => { maskDrawing = false; lastMaskPoint = null; });
+
+document.getElementById('btn-select').onclick = toggleMaskMode;
+document.getElementById('btn-mask-undo').onclick = () => {
+  if (!maskHistory.length) return;
+  maskCanvas.getContext('2d').putImageData(maskHistory.pop(), 0, 0);
+};
+document.getElementById('btn-mask-clear').onclick = () => {
+  const ctx = maskCanvas.getContext('2d');
+  maskHistory.push(ctx.getImageData(0, 0, maskCanvas.width, maskCanvas.height));
+  ctx.clearRect(0, 0, maskCanvas.width, maskCanvas.height);
+};
+document.getElementById('editor-img').addEventListener('load', () => { if (maskActive) syncMaskCanvas(); });
+window.addEventListener('resize', () => { if (maskActive && document.getElementById('editor').classList.contains('open')) syncMaskCanvas(); });
+
+function exportMaskBlob() {
+  const c = document.getElementById('mask-canvas');
+  const ctx = c.getContext('2d');
+  if (!c.width || !c.height) return Promise.resolve(null);
+  const src = ctx.getImageData(0, 0, c.width, c.height);
+  const hasContent = src.data.some((v, i) => i % 4 === 3 && v > 0);
+  if (!hasContent) return Promise.resolve(null);
+  const mc = document.createElement('canvas'); mc.width = c.width; mc.height = c.height;
+  const mctx = mc.getContext('2d');
+  mctx.fillStyle = '#000'; mctx.fillRect(0, 0, mc.width, mc.height);
+  const md = mctx.getImageData(0, 0, mc.width, mc.height);
+  for (let i = 0; i < src.data.length; i += 4) {
+    if (src.data[i + 3] > 0) { md.data[i] = md.data[i+1] = md.data[i+2] = 255; md.data[i+3] = 255; }
+  }
+  mctx.putImageData(md, 0, 0);
+  return new Promise(r => mc.toBlob(r, 'image/png'));
+}
+
+function openEditor(src, node, b64DbId) {
+  editorState = { src, b64DbId, node, pendingMaskBlob: null };
+  document.getElementById('editor-img').src = src;
+  document.getElementById('editor-title').textContent = node ? (node.prompt || '').slice(0, 60) : '';
+  document.getElementById('editor-prompt').value = '';
+  document.getElementById('editor-n').value = document.getElementById('cfg-n').value;
+  document.getElementById('editor-conc').value = document.getElementById('cfg-conc').value;
+  document.getElementById('editor-effort').value = document.getElementById('cfg-effort').value;
+  document.getElementById('editor').classList.add('open');
+  resetMaskState();
+}
+function closeEditor() {
+  document.getElementById('editor').classList.remove('open');
+  document.getElementById('ratio-menu').classList.remove('open');
+  resetMaskState();
+}
+document.getElementById('editor-close').onclick = closeEditor;
+document.getElementById('editor-body').onclick = (e) => { if (e.target === e.currentTarget) closeEditor(); };
+document.getElementById('editor-dl').onclick = () => { if (editorState.src) downloadImage(editorState.src, `roll-${Date.now()}.png`); };
+document.getElementById('editor-copy').onclick = () => { if (editorState.src) copyImageToClipboard(editorState.src); };
+
+// 宽高比下拉
+document.getElementById('btn-ratio').onclick = (e) => { e.stopPropagation(); document.getElementById('ratio-menu').classList.toggle('open'); };
+document.addEventListener('click', () => document.getElementById('ratio-menu').classList.remove('open'));
+document.querySelectorAll('#ratio-menu button').forEach(btn => {
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    const newSize = btn.dataset.size;
+    document.getElementById('ratio-menu').classList.remove('open');
+    if (!editorState.node || !editorState.b64DbId) { toast('无法获取原图信息', 'err'); return; }
+    const origPrompt = editorState.node.prompt;
+    closeEditor();
+    document.getElementById('prompt').value = origPrompt;
+    document.getElementById('cfg-size').value = newSize;
+    const b64 = await idb.get(editorState.b64DbId);
+    if (b64) {
+      pendingAttached = [];
+      const newId = uid(); await idb.put(newId, b64); pendingAttached.push(newId);
+      await renderAttached();
+    }
+    toast(`宽高比改为 ${newSize}，点「开始抽卡」生成`, 'ok');
+    document.getElementById('prompt').focus();
+  };
+});
+
+// 编辑器内 prompt 提交（含 mask 导出）
+document.getElementById('editor-submit').onclick = async () => {
+  const prompt = document.getElementById('editor-prompt').value.trim();
+  if (!prompt) { toast('请输入编辑描述', 'err'); return; }
+  if (!editorState.b64DbId) { toast('无法获取原图', 'err'); return; }
+  editorState.pendingMaskBlob = await exportMaskBlob();
+  const edN = +document.getElementById('editor-n').value || 4;
+  const edConc = +document.getElementById('editor-conc').value || 3;
+  const edEffort = document.getElementById('editor-effort').value || 'high';
+  closeEditor();
+  document.getElementById('prompt').value = prompt;
+  document.getElementById('cfg-n').value = edN;
+  document.getElementById('cfg-conc').value = edConc;
+  document.getElementById('cfg-effort').value = edEffort;
+  const b64 = await idb.get(editorState.b64DbId);
+  if (b64) {
+    pendingAttached = [];
+    const newId = uid(); await idb.put(newId, b64); pendingAttached.push(newId);
+    await renderAttached();
+  }
+  rollCards();
+};
+document.getElementById('editor-prompt').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); document.getElementById('editor-submit').click(); }
+});
+
+function toast(msg, kind='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast show ${kind}`;
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+function updateEndpointStatus(s) {
+  const el = document.getElementById('endpoint-status');
+  el.className = 'endpoint-status ' + s;
+  el.textContent = s === 'ok' ? '✓ 通' : s === 'err' ? '✗ 不通' : '未测';
+}
+
+// ===== Config modal (多账号管理) =====
+const modal = document.getElementById('modal-cfg');
+const modalAccEdit = document.getElementById('modal-acc-edit');
+let editingAccId = null; // null = 新增；string = 编辑
+
+function renderAccountList() {
+  const wrap = document.getElementById('account-list');
+  wrap.innerHTML = '';
+  if (!state.accounts.length) {
+    wrap.innerHTML = '<div style="padding:20px; text-align:center; color:var(--fg-muted)">没有账号 — 点下方「+ 添加账号」</div>';
+    return;
+  }
+  state.accounts.forEach((a, idx) => {
+    const row = document.createElement('div');
+    row.className = 'acc-row';
+    const key = a.apiKey ? `${a.apiKey.slice(0,8)}…${a.apiKey.slice(-4)}` : '(无 key)';
+    row.innerHTML = `
+      <span class="acc-badge">#${idx+1}</span>
+      <div class="acc-label-wrap">
+        <div class="acc-name">${escape(a.label || '未命名')}</div>
+        <div class="acc-meta">${a.enabled ? '✓ 已启用' : '✗ 已停用'}</div>
+      </div>
+      <button class="acc-toggle ${a.enabled ? 'on' : 'off'}">${a.enabled ? '启用' : '停用'}</button>
+      <button class="acc-btn edit">编辑</button>
+      <button class="acc-btn del">删</button>
+    `;
+    row.querySelector('.acc-toggle').onclick = () => { a.enabled = !a.enabled; renderAccountList(); };
+    row.querySelector('.edit').onclick = () => openAccEditModal(a.id);
+    row.querySelector('.del').onclick = () => {
+      if (state.accounts.length === 1) { toast('至少要保留 1 个账号', 'err'); return; }
+      if (!confirm(`删除账号「${a.label}」？`)) return;
+      state.accounts = state.accounts.filter(x => x.id !== a.id);
+      renderAccountList();
+    };
+    wrap.appendChild(row);
+  });
+}
+
+document.getElementById('btn-cfg').onclick = () => {
+  document.getElementById('cfg-strategy').value = state.global.strategy || 'round-robin';
+  renderAccountList();
+  modal.classList.add('open');
+};
+document.getElementById('btn-cfg-cancel').onclick = () => modal.classList.remove('open');
+document.getElementById('btn-cfg-save').onclick = () => {
+  state.global.strategy = document.getElementById('cfg-strategy').value;
+  saveState();
+  modal.classList.remove('open');
+  toast(`已保存 · ${state.accounts.filter(a=>a.enabled).length} 个账号启用`, 'ok');
+};
+
+// 添加账号默认走 OAuth 流程；只有编辑现有账号时才用手动 modal
+document.getElementById('btn-acc-add').onclick = () => openOAuthModal();
+
+// 同步号池：从后端拉真实数据重建 accounts list
+document.getElementById('btn-sync-pool').onclick = async () => {
+  try {
+    const token = await getBackendToken();
+    const poolR = await fetch('/api/providers/openai-codex-oauth', { headers: { 'Authorization': `Bearer ${token}` } });
+    const pool = await poolR.json();
+    if (!pool.providers?.length) { toast('号池为空', 'err'); return; }
+    // 重建 accounts：每个号一条
+    state.accounts = pool.providers.map((p, i) => {
+      const email = (p.CODEX_OAUTH_CREDS_FILE_PATH || '').match(/codex-(.+?)\.json/)?.[1] || `号${i+1}`;
+      return {
+        id: p.uuid || ('a' + uid()),
+        label: email,
+        baseUrl: '/openai-codex-oauth',
+        apiKey: '',
+        model: 'gpt-image-2',
+        enabled: p.isHealthy !== false,
+      };
+    });
+    saveState();
+    renderAccountList();
+    toast(`号池同步完成：${pool.providers.length} 个号`, 'ok');
+  } catch (e) {
+    toast(`同步失败: ${e.message}`, 'err');
+  }
+};
+
+// ===== OAuth 一键添加流程 =====
+const modalOAuth = document.getElementById('modal-oauth');
+let oauthPollTimer = null;
+let oauthBaselineCount = 0;
+
+function openOAuthModal() {
+  // 合并端口后 mgmt URL 就是同 origin（空字符串 = 当前页面）
+  const mgmt = '';
+  document.getElementById('oauth-mgmt-url').value = mgmt || '(同源 — 通过 serve.js 代理)';
+  document.getElementById('oauth-new-label').value = '';
+  document.getElementById('oauth-status').style.display = 'none';
+  document.getElementById('btn-oauth-start').disabled = false;
+  document.getElementById('btn-oauth-start').textContent = '开始 OAuth';
+  modalOAuth.classList.add('open');
+}
+
+function setOAuthStatus(msg, color) {
+  const el = document.getElementById('oauth-status');
+  el.style.display = 'block';
+  el.textContent = msg;
+  el.style.color = color || 'var(--fg-dim)';
+}
+
+async function getBackendToken() {
+  const r = await fetch('/api/backend-token');
+  const j = await r.json();
+  if (!j.token) throw new Error('获取后端 token 失败');
+  return j.token;
+}
+
+async function startOAuthFlow() {
+  // 合并端口后 mgmtBase 为空 = 同 origin，所有 /api/* 请求通过 serve.js proxy 到 backend
+  const mgmtBase = '';
+  const label = document.getElementById('oauth-new-label').value.trim() || `号${state.accounts.length + 1}`;
+  const startBtn = document.getElementById('btn-oauth-start');
+  startBtn.disabled = true;
+  try {
+    setOAuthStatus('连接后端…');
+    const token = await getBackendToken();
+    console.log('[oauth] login OK');
+
+    // 2. 查当前号池基线（记住已有的 uuid，后面用来找新增的）
+    setOAuthStatus('查当前号池数量…');
+    const poolR = await fetch(`${mgmtBase}/api/providers/openai-codex-oauth`, {
+      headers: { 'Authorization': `Bearer ${token}` },
+    });
+    const poolJ = await poolR.json();
+    oauthBaselineCount = poolJ.totalCount || 0;
+    const baselineUuids = new Set((poolJ.providers || []).map(p => p.uuid));
+    console.log('[oauth] baseline pool size:', oauthBaselineCount, 'uuids:', [...baselineUuids]);
+
+    // 3. 生成 OAuth URL + 启动反代的 callback server
+    setOAuthStatus('生成 OAuth 链接…');
+    const genR = await fetch(`${mgmtBase}/api/providers/openai-codex-oauth/generate-auth-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({}),
+    });
+    const genJ = await genR.json();
+    if (!genR.ok || !genJ.authUrl) throw new Error(`生成 URL 失败: ${genJ.error?.message || genR.status}`);
+    console.log('[oauth] authUrl received');
+
+    // 4. 开新窗口让用户登录 OpenAI
+    window.open(genJ.authUrl, '_blank');
+    setOAuthStatus('已打开 OpenAI 登录页 → 用你要加的 ChatGPT 账号登录 → 完成后回这里', 'var(--accent)');
+    startBtn.textContent = '等待登录…';
+
+    // 5. 轮询号池数量变化
+    let elapsed = 0;
+    oauthPollTimer = setInterval(async () => {
+      elapsed += 3;
+      if (elapsed > 300) { // 5 分钟超时
+        clearInterval(oauthPollTimer); oauthPollTimer = null;
+        setOAuthStatus('5 分钟未检测到新号入池，超时。如果你已完成登录，手动刷新一下页面看号池', 'var(--red)');
+        startBtn.disabled = false; startBtn.textContent = '开始 OAuth';
+        return;
+      }
+      try {
+        const r = await fetch(`${mgmtBase}/api/providers/openai-codex-oauth`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+        });
+        const j = await r.json();
+        if ((j.totalCount || 0) > oauthBaselineCount) {
+          clearInterval(oauthPollTimer); oauthPollTimer = null;
+          // 找真正新增的号（uuid 不在 baseline 里的那个）
+          const newNodes = j.providers.filter(p => !baselineUuids.has(p.uuid));
+          const newNode = newNodes[0] || j.providers[j.providers.length - 1];
+          const email = (newNode.CODEX_OAUTH_CREDS_FILE_PATH || '').match(/codex-(.+?)\.json/)?.[1] || 'unknown';
+          console.log('[oauth] new node found:', email, newNode.uuid);
+          // 添加 accounts 项（同 baseUrl + key，仅 label 不同 — 反代后端号池负责轮询）
+          const acc0 = state.accounts[0];
+          state.accounts.push({
+            id: 'a' + uid(),
+            label: `${label} (${email})`,
+            baseUrl: acc0.baseUrl, apiKey: acc0.apiKey, model: acc0.model,
+            enabled: true,
+          });
+          saveState();
+          renderAccountList();
+          setOAuthStatus(`✓ 成功：新号 ${email} 已加入号池`, 'var(--green)');
+          toast(`新号 ${email} 入池成功`, 'ok');
+          setTimeout(() => modalOAuth.classList.remove('open'), 1500);
+        } else {
+          setOAuthStatus(`等待登录中… (${elapsed}s) · 号池当前 ${j.totalCount} 个号`, 'var(--accent)');
+        }
+      } catch (e) {
+        console.warn('[oauth] poll error:', e);
+      }
+    }, 3000);
+  } catch (e) {
+    console.error('[oauth] failed:', e);
+    setOAuthStatus(`✗ ${e.message}`, 'var(--red)');
+    startBtn.disabled = false; startBtn.textContent = '开始 OAuth';
+  }
+}
+
+document.getElementById('btn-oauth-start').onclick = startOAuthFlow;
+document.getElementById('btn-oauth-cancel').onclick = () => {
+  if (oauthPollTimer) { clearInterval(oauthPollTimer); oauthPollTimer = null; }
+  modalOAuth.classList.remove('open');
+};
+document.getElementById('btn-oauth-manual').onclick = () => {
+  if (oauthPollTimer) { clearInterval(oauthPollTimer); oauthPollTimer = null; }
+  modalOAuth.classList.remove('open');
+  openAccEditModal(null);
+};
+
+function openAccEditModal(accId) {
+  editingAccId = accId;
+  const a = accId ? state.accounts.find(x => x.id === accId) : null;
+  document.getElementById('acc-edit-title').textContent = a ? `编辑账号: ${a.label}` : '添加账号';
+  document.getElementById('acc-label').value = a ? a.label : '';
+  document.getElementById('acc-base').value = a ? a.baseUrl : DEFAULT_ACCOUNT.baseUrl;
+  document.getElementById('acc-key').value = a ? a.apiKey : '';
+  document.getElementById('acc-model').value = a ? a.model : DEFAULT_ACCOUNT.model;
+  document.getElementById('acc-enabled').checked = a ? a.enabled : true;
+  modalAccEdit.classList.add('open');
+}
+document.getElementById('btn-acc-cancel').onclick = () => modalAccEdit.classList.remove('open');
+document.getElementById('btn-acc-save').onclick = () => {
+  const label = document.getElementById('acc-label').value.trim() || '未命名';
+  const baseUrl = document.getElementById('acc-base').value.trim().replace(/\/$/, '') || DEFAULT_ACCOUNT.baseUrl;
+  const apiKey = document.getElementById('acc-key').value.trim();
+  const model = document.getElementById('acc-model').value.trim() || 'gpt-image-2';
+  const enabled = document.getElementById('acc-enabled').checked;
+  if (editingAccId) {
+    const a = state.accounts.find(x => x.id === editingAccId);
+    Object.assign(a, { label, baseUrl, apiKey, model, enabled });
+  } else {
+    state.accounts.push({ id: 'a' + uid(), label, baseUrl, apiKey, model, enabled });
+  }
+  modalAccEdit.classList.remove('open');
+  renderAccountList();
+};
+
+// ===== Endpoint test (批量测所有 enabled 账号) =====
+document.getElementById('btn-test').onclick = async () => {
+  const btn = document.getElementById('btn-test');
+  btn.disabled = true; btn.textContent = '测...';
+  updateEndpointStatus('unk');
+  const enabled = state.accounts.filter(a => a.enabled);
+  if (!enabled.length) { toast('没有启用的账号', 'err'); btn.disabled = false; btn.textContent = '测端点'; return; }
+
+  let ok = 0, fail = 0;
+  const errors = [];
+  // 仅测 /v1/models（轻量、不消耗 image quota）
+  await Promise.all(enabled.map(async (a) => {
+    try {
+      const r = await fetch(`${a.baseUrl}/v1/models`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${a.apiKey}` },
+      });
+      if (r.ok) { ok++; console.log(`[test] ${a.label}: ${r.status} OK`); }
+      else { fail++; errors.push(`${a.label}: HTTP ${r.status}`); }
+    } catch (e) {
+      fail++;
+      errors.push(`${a.label}: ${(e.message||'').slice(0,60)}`);
+    }
+  }));
+
+  if (fail === 0) {
+    updateEndpointStatus('ok');
+    toast(`所有 ${ok} 个账号端点 OK`, 'ok');
+  } else if (ok === 0) {
+    updateEndpointStatus('err');
+    toast(`全挂: ${errors.slice(0,2).join('; ')}`, 'err');
+  } else {
+    updateEndpointStatus('err');
+    toast(`${ok} 通 / ${fail} 挂: ${errors.slice(0,2).join('; ')}`, 'err');
+  }
+  btn.disabled = false; btn.textContent = '测端点';
+};
+
+// ===== Export (hidden, kept as util) =====
+function exportData() {
+  (async () => {
+    const allImgIds = new Set();
+    Object.values(state.nodes).forEach(n => {
+      (n.results || []).forEach(r => r.b64DbId && allImgIds.add(r.b64DbId));
+      (n.attachedImageIds || []).forEach(i => allImgIds.add(i));
+    });
+    const images = {};
+    for (const id of allImgIds) {
+      const b64 = await idb.get(id);
+      if (b64) images[id] = b64;
+    }
+    const blob = new Blob([JSON.stringify({ state, images }, null, 0)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `image-roller-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    toast('已导出', 'ok');
+  })();
+}
+
+// ===== New conv =====
+document.getElementById('btn-new').onclick = () => newConv();
+
+// ===== Go button =====
+document.getElementById('btn-go').onclick = () => rollCards();
+document.getElementById('prompt').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !e.repeat) { e.preventDefault(); rollCards(); }
+});
+
+// ===== 设置记忆：张数/比例/并发改动时存 state.global =====
+['cfg-n', 'cfg-size', 'cfg-conc', 'cfg-effort'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    state.global.defaultN = +document.getElementById('cfg-n').value || 4;
+    state.global.defaultSize = document.getElementById('cfg-size').value;
+    state.global.defaultConcurrency = +document.getElementById('cfg-conc').value || 3;
+    state.global.defaultEffort = document.getElementById('cfg-effort').value;
+    saveState();
+  });
+});
+
+// ===== Init =====
+(async function init() {
+  await idb.open();
+  await loadState();
+  if (!Object.keys(state.conversations).length) newConv();
+  document.getElementById('cfg-n').value = state.global.defaultN;
+  document.getElementById('cfg-size').value = state.global.defaultSize;
+  document.getElementById('cfg-effort').value = state.global.defaultEffort || 'high';
+  document.getElementById('cfg-conc').value = state.global.defaultConcurrency;
+  renderAll();
+
+  // 自动同步号池：从后端拉真实数据，让账号列表显示正确的 email + 数量
+  try {
+    const token = await getBackendToken();
+    if (token) {
+      const pr = await fetch('/api/providers/openai-codex-oauth', { headers: { 'Authorization': `Bearer ${token}` } });
+      const pool = await pr.json();
+      if (pool.providers?.length) {
+        state.accounts = pool.providers.map((p, i) => {
+          const email = (p.CODEX_OAUTH_CREDS_FILE_PATH || '').match(/codex-(.+?)\.json/)?.[1] || `号${i+1}`;
+          return { id: p.uuid || ('a'+uid()), label: email, baseUrl: '/openai-codex-oauth', apiKey: '', model: 'gpt-image-2', enabled: p.isHealthy !== false };
+        });
+        saveState();
+        console.log(`[init] 号池同步: ${state.accounts.length} 个号`);
+      }
+    }
+  } catch (e) { console.warn('[init] 号池同步失败(后端可能没跑):', e.message); }
+})();
+</script>
+</body>
+</html>

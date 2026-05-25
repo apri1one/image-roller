@@ -1,0 +1,94 @@
+<link rel="stylesheet" href="components/section-providers.css">
+<!-- Provider Pools Section -->
+<section id="providers" class="section" aria-labelledby="providers-title">
+    <h2 id="providers-title" data-i18n="providers.title">提供商池管理</h2>
+    <div class="pool-description">
+        <div class="highlight-note">
+            <i class="fas fa-info-circle"></i>
+            <span data-i18n="providers.note">使用默认路径配置需添加一个空节点</span>
+        </div>
+    </div>
+    <div class="providers-handoff-panel">
+        <div class="providers-handoff-head">
+            <div>
+                <h3 data-i18n="providers.handoff.title">节点交付准备</h3>
+                <p class="providers-handoff-subtitle" data-i18n="providers.handoff.subtitle">先确认至少有一组可用节点，再去“快速接入”复制最终端点；如果还没设预加载供应商，也可以顺手回配置管理补齐。</p>
+            </div>
+            <div class="providers-handoff-actions">
+                <button type="button" class="btn btn-outline" id="providersOpenConfig">
+                    <i class="fas fa-sliders-h"></i>
+                    <span data-i18n="providers.handoff.openConfig">去配置管理</span>
+                </button>
+                <button type="button" class="btn btn-primary" id="providersOpenQuickAccess">
+                    <i class="fas fa-key"></i>
+                    <span data-i18n="providers.handoff.openAccess">打开快速接入</span>
+                </button>
+            </div>
+        </div>
+        <div class="providers-handoff-grid">
+            <div class="providers-handoff-item">
+                <span class="providers-handoff-label" data-i18n="providers.handoff.groups">已配置分组</span>
+                <strong id="providersHandoffGroups">--</strong>
+            </div>
+            <div class="providers-handoff-item">
+                <span class="providers-handoff-label" data-i18n="providers.handoff.healthyNodes">健康节点</span>
+                <strong id="providersHandoffHealthyNodes">--</strong>
+            </div>
+            <div class="providers-handoff-item">
+                <span class="providers-handoff-label" data-i18n="providers.handoff.defaultProviders">预加载供应商</span>
+                <strong id="providersHandoffDefaults">--</strong>
+            </div>
+            <div class="providers-handoff-item">
+                <span class="providers-handoff-label" data-i18n="providers.handoff.nextStep">下一步</span>
+                <strong id="providersHandoffNextStep">--</strong>
+            </div>
+        </div>
+    </div>
+    <!-- Provider Pool Stats -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-server"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="activeConnections">0</h3>
+                <p data-i18n="providers.activeConnections">活动连接</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-network-wired"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="activeProviders">0</h3>
+                <p data-i18n="providers.activeProviders">活跃提供商</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stat-info">
+                <h3 id="healthyProviders">0</h3>
+                <p data-i18n="providers.healthyProviders">健康提供商</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Provider Search Bar -->
+    <div class="search-bar" style="margin-bottom: 20px;">
+        <div class="search-input-wrapper">
+            <i class="fas fa-search"></i>
+            <input type="text" id="providerSearchInput" data-i18n-placeholder="providers.searchPlaceholder" placeholder="搜索提供商名称或节点内容...">
+        </div>
+    </div>
+
+    <div id="providers-header-actions" class="header-actions" style="margin-bottom: 15px; display: flex; justify-content: flex-end;">
+        <!-- 此处的添加分组按钮已移至 providersList 末尾 -->
+    </div>
+    <div class="providers-container">
+        <div id="providersList" class="providers-list">
+            <!-- Providers will be loaded here -->
+        </div>
+    </div>
+</section>
