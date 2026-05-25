@@ -8,12 +8,11 @@ const PORT = parseInt(process.env.PORT) || 8180;
 const HOST = '::';
 const ROOT = __dirname;
 const OUTPUT_DIR = path.join(ROOT, 'output');
-const BACKEND_PORT = parseInt(process.env.BACKEND_PORT) || 7780;
 const BACKEND_CONFIG_PATH = path.join(ROOT, 'backend', 'configs', 'config.json');
-let BACKEND_API_KEY = process.env.BACKEND_API_KEY || '';
-if (!BACKEND_API_KEY) {
-  try { BACKEND_API_KEY = JSON.parse(fs.readFileSync(BACKEND_CONFIG_PATH, 'utf8')).REQUIRED_API_KEY || ''; } catch {}
-}
+let backendConfig = {};
+try { backendConfig = JSON.parse(fs.readFileSync(BACKEND_CONFIG_PATH, 'utf8')); } catch {}
+const BACKEND_PORT = parseInt(process.env.BACKEND_PORT) || backendConfig.SERVER_PORT || 7780;
+const BACKEND_API_KEY = process.env.BACKEND_API_KEY || backendConfig.REQUIRED_API_KEY || '123456';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

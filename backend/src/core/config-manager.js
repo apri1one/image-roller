@@ -72,7 +72,7 @@ function normalizeConfiguredProviders(config) {
 export async function initializeConfig(args = process.argv.slice(2), configFilePath = 'configs/config.json') {
     const defaultConfig = {
         REQUIRED_API_KEY: "123456",
-        SERVER_PORT: 3000,
+        SERVER_PORT: 7780,
         HOST: '0.0.0.0',
         MODEL_PROVIDER: MODEL_PROVIDER.GEMINI_CLI,
         SYSTEM_PROMPT_FILE_PATH: INPUT_SYSTEM_PROMPT_FILE, // Default value
