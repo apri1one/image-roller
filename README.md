@@ -17,7 +17,21 @@ cd backend && npm install && cd ..
 npm start
 ```
 
-浏览器打开 http://localhost:8180，在设置里 OAuth 登录 ChatGPT 账号即可使用。
+浏览器打开 http://localhost:8180
+
+## 添加 ChatGPT 账号
+
+1. 点齿轮 ⚙ 打开设置
+2. 点「+ 添加账号」
+3. 输入标签（如"主号"）→ 点「开始 OAuth」
+4. 浏览器自动打开 OpenAI 登录页，用你的 ChatGPT 账号登录
+5. 完成后账号自动入号池
+
+## 使用建议
+
+- 并发数 ≤ 4，填 5 就会被限流
+- 多账号可以提高总吞吐（每个号独立限速）
+- thinking 模式质量更好但更慢，instant 模式更快
 
 ## License
 
